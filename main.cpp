@@ -67,7 +67,6 @@ size_t emulate(size_t n, size_t k, linalg::matrix const& gen_matrix, size_t w_ma
     for (size_t i = 0; i < iterations; ++i) {
         auto message = gen_vect(k);
         auto encoded = enc.encode(message);
-        // std::cout << "testing with: " << message.to_string() << " " << encoded.to_string() << "\n\n";
         auto decoded = dec.decode(send(encoded, norm));
         if (decoded == message) {
             ++cnt;

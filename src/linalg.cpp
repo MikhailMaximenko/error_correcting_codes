@@ -201,15 +201,12 @@ std::pair<std::vector<size_t>, matrix> matrix::resolve_basis() {
         
     }
 
-    // *this = std::move(old); // return all vectors to beginning state
-
     // make identity matrix on basis vectors by permutations
     for (size_t i = 0; i < basis_pos.size(); ++i) { 
         for (size_t j = 0; j < size(); ++j) {
             if ((*this)[j][basis_pos[i]]) {
                 using std::swap;
                 swap((*this)[j], (*this)[i]);
-                // swap(transformation[j], transformation[i]);
             }
         }
     }
