@@ -55,36 +55,45 @@ std::vector<double> send(linalg::lin_vector const& message, std::normal_distribu
 }
 
 // returns number of correct decoded messages
-size_t emulate(size_t n, size_t k, linalg::matrix const& gen_matrix, size_t w_max, 
-            size_t iterations, double var) {
+std::pair<size_t, size_t> emulate(size_t n, size_t k, linalg::matrix const& gen_matrix, size_t w_max, 
+            size_t errors, double deviation) {
                 
     
     encoding::encoder enc = {gen_matrix};
     encoding::decoder dec = {gen_matrix, w_max};
-    std::normal_distribution<double> norm(0.0, var);
+    std::normal_distribution<double> norm(0.0, deviation);
+    size_t iterations = 0;
     size_t cnt = 0;
     std::vector<double> rels(n, 1.0);
-    for (size_t i = 0; i < iterations; ++i) {
+    while (iterations - cnt < errors) {
         auto message = gen_vect(k);
         auto encoded = enc.encode(message);
         auto decoded = dec.decode(send(encoded, norm));
         if (decoded == message) {
             ++cnt;
         }
-
+        if (iterations % 100000 == 0) {
+            std::cout << iterations << " " << deviation << '\n';
+        }
+        ++iterations;
     }
-    return cnt;
+    return std::make_pair(iterations, cnt);
 }
 
-void make_and_put_samples(std::ofstream &out, linalg::matrix const& gen_matrix, size_t n, size_t k, size_t w_max, size_t iters, double step) {
+void make_and_put_samples(std::ofstream &out, linalg::matrix const& gen_matrix, size_t n, size_t k, size_t w_max, size_t errors, double step) {
     double signal_noise = -2;
     
-    while (signal_noise <= 7) {
-        // E / N = signal_noise in W, E = 1, 
-        // so N = 1 / signal_noise in W =  1 / 10^(0.1 signal_noise in dB) = 10^(-0.1*signal_noise)
-        double noise_var = std::pow(10, -0.1*signal_noise);
-        auto res = emulate(n, k, gen_matrix, w_max, iters, noise_var);
-        out << w_max << " " << iters << " " << res << " " << signal_noise << '\n';
+    while (signal_noise <= 5.5) {
+        // Eb / N = signal_noise,
+        // Es = 1
+        // Es / (Rc*N) = signal_noise,
+        // 1 / (Rc*N) = signal_noise,
+        // N = 1 / (Rc*signal_noise) = n / (k * signal_noise)
+        // so N = 1 / signal_noise =  n / (k * 10^(0.1 signal_noise)) = n * 10^(-0.1*signal_noise) / k 
+        double noise_var = std::pow(10, -0.1*signal_noise) * n / k;
+        // N = 2 * \sigma ^ 2 -> \sigma = sqrt(N / 2)
+        auto res = emulate(n, k, gen_matrix, w_max, errors, sqrt(noise_var / 2));
+        out << w_max << " " << res.first << " " << res.second << " " << static_cast<double>(res.second) / res.first << " " << signal_noise  << '\n';
 
         signal_noise += step;
     }
@@ -108,12 +117,12 @@ int main(int argc, const char* argv[]) {
         return -1;
     }
 
-    size_t w_max, iters;
+    size_t w_max, errors;
     double step;
 
     try {
         w_max = std::stoull(argv[3]);
-        iters = std::stoull(argv[4]);
+        errors = std::stoull(argv[4]);
         step = std::stod(argv[5]);
     } catch(std::invalid_argument const& e) {
         std::cout << "could not parse numeric args: " << e.what();
@@ -143,6 +152,6 @@ int main(int argc, const char* argv[]) {
             }
         }
     }
-    make_and_put_samples(out, gen, n, k, w_max, iters, step);
+    make_and_put_samples(out, gen, n, k, w_max, errors, step);
     return 0;
 }
