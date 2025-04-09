@@ -90,9 +90,9 @@ void make_and_put_samples(std::ofstream &out, linalg::matrix const& gen_matrix, 
         // 1 / (Rc*N) = signal_noise,
         // N = 1 / (Rc*signal_noise) = n / (k * signal_noise)
         // so N = 1 / signal_noise =  n / (k * 10^(0.1 signal_noise)) = n * 10^(-0.1*signal_noise) / k 
-        double noise_var = std::pow(10, -0.1*signal_noise) * n / k;
+        double twice_noise_var = std::pow(10, -0.1*signal_noise) * n / k;
         // N = 2 * \sigma ^ 2 -> \sigma = sqrt(N / 2)
-        auto res = emulate(n, k, gen_matrix, w_max, errors, sqrt(noise_var / 2));
+        auto res = emulate(n, k, gen_matrix, w_max, errors, sqrt(twice_noise_var / 2));
         out << w_max << " " << res.first << " " << res.second << " " << static_cast<double>(res.second) / res.first << " " << signal_noise  << '\n';
 
         signal_noise += step;
