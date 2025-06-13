@@ -13,6 +13,8 @@ struct matrix;
 struct lin_vector : std::vector<bool> {
     using std::vector<bool>::vector;
 
+    lin_vector(size_t, size_t);
+
     lin_vector& operator+=(lin_vector const&);
     lin_vector operator+(lin_vector const&) const;
     int64_t operator*(lin_vector const&) const;
@@ -20,6 +22,16 @@ struct lin_vector : std::vector<bool> {
     void permutate(std::vector<size_t> const&);
     lin_vector operator*(matrix const&) const;
 
+
+    lin_vector& operator++() noexcept;
+
+    size_t leading() const noexcept;
+    size_t trailing() const noexcept;
+
+    lin_vector puncture(size_t, size_t) const;
+    lin_vector concat(lin_vector const &) const;
+
+    uint64_t to_bit_mask() const;
     std::string to_string() const;
 
 };
@@ -36,7 +48,25 @@ struct matrix : std::vector<lin_vector> {
 
     void permutate(std::vector<size_t> const&);
 
+    void make_tof(matrix&) noexcept;
+
+    std::vector<size_t> get_g_s(ptrdiff_t) const;
+
+    std::vector<size_t> get_g_f(ptrdiff_t) const;
+
+    std::vector<size_t> get_g_f_s(ptrdiff_t, ptrdiff_t) const;
+
+    matrix puncture(size_t, size_t) const;
+
+    std::pair<matrix, matrix> resolve_basis_gaussian(size_t);
+
+    matrix retrieve(std::vector<size_t> const&) const;
+
     std::pair<std::vector<size_t>, matrix> resolve_basis();
+
+    std::string to_string() const;
+
+    matrix operator+(matrix const&) const;
 };
 
 } // namespace linalg

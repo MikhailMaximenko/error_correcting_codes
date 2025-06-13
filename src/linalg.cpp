@@ -10,6 +10,12 @@
 
 namespace linalg {
 
+lin_vector::lin_vector(size_t src, size_t dim) : std::vector<bool>(dim) {
+    for (size_t i = 0; i < dim; ++i) {
+        (*this)[i] = (src >> (dim - i - 1)) & 1;
+    }
+}
+
 lin_vector& lin_vector::operator+=(lin_vector const& o) {
     if (size() != o.size()) {
         throw std::domain_error("cannot add vectors of different size");
@@ -89,7 +95,72 @@ std::string lin_vector::to_string() const {
         } else {
             res.push_back('0');
         }
+        // res.push_back(',');
+        // res.push_back(' ');
     }
+    return res;
+}
+
+lin_vector& lin_vector::operator++() noexcept {
+    for (ptrdiff_t i = size() - 1; i >= 0; --i) {
+        if (!(*this)[i]) {
+            (*this)[i] = true;
+            return *this;
+        } else {
+            (*this)[i] = false;
+        }
+    }
+    return *this;
+}
+
+uint64_t lin_vector::to_bit_mask() const {
+    if (size() > 64) {
+        throw std::domain_error("to big vector to convert to int");
+    }
+    uint64_t res = 0;
+    for (size_t i = 0; i < size(); ++i) {
+        res <<= 1;
+        if ((*this)[i]) {
+            ++res;
+        }
+    }
+    return res;
+}
+
+
+size_t lin_vector::leading() const noexcept {
+    size_t res = 0;
+    for (; res < size(); ++res) {
+        if (at(res)) {
+            return res;
+        }
+    }
+    return res;
+}
+
+
+size_t lin_vector::trailing() const noexcept {
+    size_t res = size() - 1;
+    for (; res >= 1; --res) {
+        if (at(res)) {
+            return res;
+        }
+    }
+    return res;
+}
+
+lin_vector lin_vector::puncture(size_t x, size_t y) const {
+    if (x >= size() || y <= x) {
+        throw std::logic_error("bad bounds for puncturing");
+    }
+    lin_vector res;
+    res.insert(res.begin(), begin() + x, begin() + y);
+    return res;
+}
+
+lin_vector lin_vector::concat(lin_vector const & o) const {
+    lin_vector res(*this);
+    res.insert(res.end(), o.begin(), o.end());
     return res;
 }
 
@@ -152,6 +223,29 @@ void matrix::permutate(std::vector<size_t> const& permutation) {
     }
 }
 
+std::pair<matrix, matrix> matrix::resolve_basis_gaussian(size_t c_tr_ctors) {
+    matrix res;
+    matrix pre_shifts(size(), lin_vector(at(0).size(), false));
+    matrix shifts;
+    for (size_t i = 0; i < size(); ++i) {
+        if (i < c_tr_ctors) {
+            // shifts.push_back(at(i)); // assume that c_tr_ctors are linear independant and are already in tof
+            pre_shifts[i] = at(i);
+        }
+        if ((*this)[i].leading() != (*this)[i].size()) {
+            res.push_back((*this)[i]);
+            shifts.push_back(i < c_tr_ctors ? lin_vector(at(0).size(), false) : pre_shifts[i]);
+            for (size_t j = i + 1; j < size(); ++j) {
+                if ((*this)[j][(*this)[i].leading()]) {
+                    (*this)[j] += (*this)[i];
+                    pre_shifts[j] += pre_shifts[i];
+                }
+            }
+        }
+    }
+    return {res, shifts};
+}
+
 
 // returns vector of basis pos and transformation matrix to old basis
 std::pair<std::vector<size_t>, matrix> matrix::resolve_basis() {
@@ -190,7 +284,7 @@ std::pair<std::vector<size_t>, matrix> matrix::resolve_basis() {
                 continue;
             }
             if ((*this)[j][i]) {
-                (*this)[j] += (*this)[not_null_pos]; // - can be replaced with + in a ring of module 2 
+                (*this)[j] += (*this)[not_null_pos];
             }
         }
 
@@ -213,6 +307,113 @@ std::pair<std::vector<size_t>, matrix> matrix::resolve_basis() {
 
 
     return std::make_pair(std::move(basis_pos), std::move(transformation)); 
+}
+
+void matrix::make_tof(matrix& shifts) noexcept {
+    for (size_t i = 0; i < size(); ++i) {
+        size_t best_leading = 10e9;
+        size_t best_number;
+        for (size_t j = i; j < size(); ++j) {
+            size_t leading = (*this)[j].leading();
+            if (best_leading > leading) {
+                best_leading = leading;
+                best_number = j;
+            }
+        }
+        if (best_leading == (*this)[i].size()) {
+            return;
+        }
+        using std::swap;
+        swap((*this)[i], (*this)[best_number]);
+        swap(shifts[i], shifts[best_number]);
+        for (size_t j = i + 1; j < size(); ++j) {
+            if ((*this)[j][best_leading]) {
+                (*this)[j] += (*this)[i];
+                shifts[j] += shifts[i];
+            }
+        }
+    }
+
+    for (ptrdiff_t i = size() - 1; i >= 0; --i) {
+        for (ptrdiff_t j = i - 1; j >= 0; --j) {
+            if ((*this)[j].trailing() == (*this)[i].trailing()) {
+                (*this)[j] += (*this)[i]; 
+                shifts[j] += shifts[i];
+            }
+        }
+    }
+
+}
+
+matrix matrix::retrieve(std::vector<size_t> const& ind) const {
+    matrix res;
+    for (size_t index : ind) {
+        res.push_back(at(index));
+    }
+    return res;
+}
+
+std::vector<size_t> matrix::get_g_s(ptrdiff_t h) const {
+    std::vector<size_t> res;
+    for (size_t i = 0; i < size(); ++i) {
+        if (h > at(i).leading() && h <= at(i).trailing()) {
+            res.push_back(i);
+        }
+    }
+    return res;
+}
+
+std::vector<size_t> matrix::get_g_f(ptrdiff_t h) const {
+    std::vector<size_t> res;
+    for (size_t i = 0; i < size(); ++i) {
+        if (h <= at(i).leading()) {
+            res.push_back(i);
+        }
+    }
+    return res;
+}
+
+std::vector<size_t> matrix::get_g_f_s(ptrdiff_t f, ptrdiff_t s) const {
+    if (s <= f) {
+        return {};
+    }
+
+    auto indeces = get_g_f(f);
+
+    auto snd = retrieve(get_g_f(f)).get_g_s(s);
+
+    std::vector<size_t> res;
+
+    for (size_t i = 0; i < snd.size(); ++i) {
+        res.push_back(indeces[snd[i]]);
+    }
+
+    return res;
+}
+
+matrix matrix::puncture(size_t x, size_t y) const {
+    matrix res;
+    for (auto const& vect : *this) {
+        res.emplace_back(vect.puncture(x, y));
+    }
+    return res;
+}
+
+std::string matrix::to_string() const {
+    std::string res;
+    for (auto const& vect : *this) {
+        res += vect.to_string();
+        res += '\n';
+    }
+    return res;
+}
+
+matrix matrix::operator+(matrix const& o) const {
+    matrix mt(*this);
+    for (size_t i = 0; i < size(); ++i) {
+        mt[i] += o[i];
+    }
+    return mt;
 }
 
 }

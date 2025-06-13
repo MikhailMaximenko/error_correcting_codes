@@ -171,4 +171,19 @@ TEST(linalg_correctness, resolve_basis3_with_8_4) {
     EXPECT_EQ(transformation.inverse() * back_transform_check, check);
 }
 
+TEST(linalg_correctness, concat_ctors) {
+    linalg::lin_vector v1 = {0, 1, 0};
+    linalg::lin_vector v2 = {1, 1, 0, 1, 0};
+
+    linalg::lin_vector v1_check = {0, 1, 0};
+    linalg::lin_vector v2_check = {1, 1, 0, 1, 0};
+    linalg::lin_vector v3_check = {0, 1, 0, 1, 1, 0, 1, 0};
+    linalg::lin_vector v3 = v1.concat(v2);
+
+    EXPECT_EQ(v1, v1_check);
+    EXPECT_EQ(v2, v2_check);
+    EXPECT_EQ(v3, v3_check);
+}
+
+
 
