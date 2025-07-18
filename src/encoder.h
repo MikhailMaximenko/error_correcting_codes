@@ -11,11 +11,14 @@
 #include <map>
 #include <memory>
 #include <ostream>
+#include <set>
 #include <stdexcept>
 #include <utility>
 #include <vector>
 
 namespace encoding {
+
+linalg::matrix build_rm_code(size_t, size_t);
 
 struct encoder {
     linalg::matrix generating;
@@ -49,12 +52,19 @@ struct decoder {
 
 
 struct trellis_based_rml_decoder {
+    const size_t MAKE_CBT = 1;
     linalg::matrix _gen;
     bool g{false};
     bool u{false};
 
+    size_t _comparisons{0};
+    size_t _additions{0};
+
     std::vector<std::vector<linalg::matrix>> _special_matrices; // lets store all the special matrices as we need to compute it ones
-    std::vector<std::vector<linalg::matrix>> _shifts;
+
+    std::vector<std::vector<linalg::lin_vector>> _gray_codes; // contains all the gray codes of dims 0 to max(p_x_y(C)), where x, y are bounds of make_cbt procedure
+
+    std::vector<std::vector<std::vector<std::pair<std::pair<linalg::lin_vector, linalg::lin_vector>, linalg::lin_vector>>>> _ctors_for_make_cbt; // stores corresponding coset of vect and opposite coset and vect itself; if (g) then it stores ctors in gray order
 
     std::vector<std::vector<trellis>> _trellises;
     // we do not need to store shifts as we find basis vectors by gaussian method, however it might have some small speed up
@@ -74,6 +84,25 @@ struct trellis_based_rml_decoder {
 
     // gen matrix should be in TOF
     void build_special_trellis(size_t x, size_t z, size_t y);
+
+    void make_uniform_decomposition(size_t x, size_t z, size_t y);
+
+    void find_parallel_components(size_t x, size_t z, size_t y);
+
+    bool compare_parallel_components(trellis&, size_t, size_t);
+
+    void partition_parallel_components(trellis&);
+
+    void partition_component(trellis&);
+
+    void build_gray_codes(size_t n);
+
+    std::pair<linalg::matrix, linalg::matrix>
+        find_interesting_ctors(size_t, size_t, size_t);
+
+    void prepare_make_cbt_u(size_t x, size_t y);
+    
+    void prepare_make_cbt_g(size_t x, size_t y);
 
     void make_cbt_i(size_t x, size_t y, hamming_metric const& metric);
 

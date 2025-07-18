@@ -1,7 +1,9 @@
 #include "linalg.h"
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <iostream>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -47,6 +49,23 @@ lin_vector lin_vector::operator*(matrix const& o) const { // expects vector to b
     matrix tmp;
     tmp.push_back(*this);
     return (tmp * o)[0];
+}
+
+lin_vector& lin_vector::operator-() {
+    for (size_t i = 0; i < size(); ++i) {
+        at(i) = at(i) != true;
+    }
+    return *this;
+}
+
+lin_vector& lin_vector::multiply(lin_vector const& o) {
+    if (size() != o.size()) {
+        throw std::logic_error("cannot multiply vectors of different size");
+    }
+    for (size_t i = 0; i < size(); ++i) {
+        at(i) = at(i) & o.at(i);
+    }
+    return *this;
 }
 
 void lin_vector::permutate(std::vector<size_t> const& permutation) {
@@ -149,8 +168,16 @@ size_t lin_vector::trailing() const noexcept {
     return res;
 }
 
+bool lin_vector::all_zeros(size_t from, size_t to) const {
+    bool flag = false;
+    for (size_t i = from; i < to; ++i) {
+        flag |= at(i);
+    }
+    return flag;
+}
+
 lin_vector lin_vector::puncture(size_t x, size_t y) const {
-    if (x >= size() || y <= x) {
+    if (x > size() || y < x) {
         throw std::logic_error("bad bounds for puncturing");
     }
     lin_vector res;
@@ -223,27 +250,19 @@ void matrix::permutate(std::vector<size_t> const& permutation) {
     }
 }
 
-std::pair<matrix, matrix> matrix::resolve_basis_gaussian(size_t c_tr_ctors) {
+matrix matrix::resolve_basis_gaussian() {
     matrix res;
-    matrix pre_shifts(size(), lin_vector(at(0).size(), false));
-    matrix shifts;
     for (size_t i = 0; i < size(); ++i) {
-        if (i < c_tr_ctors) {
-            // shifts.push_back(at(i)); // assume that c_tr_ctors are linear independant and are already in tof
-            pre_shifts[i] = at(i);
-        }
         if ((*this)[i].leading() != (*this)[i].size()) {
             res.push_back((*this)[i]);
-            shifts.push_back(i < c_tr_ctors ? lin_vector(at(0).size(), false) : pre_shifts[i]);
             for (size_t j = i + 1; j < size(); ++j) {
                 if ((*this)[j][(*this)[i].leading()]) {
                     (*this)[j] += (*this)[i];
-                    pre_shifts[j] += pre_shifts[i];
                 }
             }
         }
     }
-    return {res, shifts};
+    return res;
 }
 
 
@@ -309,7 +328,7 @@ std::pair<std::vector<size_t>, matrix> matrix::resolve_basis() {
     return std::make_pair(std::move(basis_pos), std::move(transformation)); 
 }
 
-void matrix::make_tof(matrix& shifts) noexcept {
+void matrix::make_tof() noexcept {
     for (size_t i = 0; i < size(); ++i) {
         size_t best_leading = 10e9;
         size_t best_number;
@@ -325,11 +344,9 @@ void matrix::make_tof(matrix& shifts) noexcept {
         }
         using std::swap;
         swap((*this)[i], (*this)[best_number]);
-        swap(shifts[i], shifts[best_number]);
         for (size_t j = i + 1; j < size(); ++j) {
             if ((*this)[j][best_leading]) {
                 (*this)[j] += (*this)[i];
-                shifts[j] += shifts[i];
             }
         }
     }
@@ -338,7 +355,6 @@ void matrix::make_tof(matrix& shifts) noexcept {
         for (ptrdiff_t j = i - 1; j >= 0; --j) {
             if ((*this)[j].trailing() == (*this)[i].trailing()) {
                 (*this)[j] += (*this)[i]; 
-                shifts[j] += shifts[i];
             }
         }
     }
@@ -373,21 +389,39 @@ std::vector<size_t> matrix::get_g_f(ptrdiff_t h) const {
     return res;
 }
 
+std::vector<size_t> matrix::get_g_p(ptrdiff_t h) const {
+    std::vector<size_t> res;
+    for (size_t i = 0; i < size(); ++i) {
+        if (h > at(i).trailing()) {
+            res.push_back(i);
+        }
+    }
+    return res;
+}
+
 std::vector<size_t> matrix::get_g_f_s(ptrdiff_t f, ptrdiff_t s) const {
     if (s <= f) {
         return {};
     }
-
     auto indeces = get_g_f(f);
-
     auto snd = retrieve(get_g_f(f)).get_g_s(s);
-
     std::vector<size_t> res;
-
     for (size_t i = 0; i < snd.size(); ++i) {
         res.push_back(indeces[snd[i]]);
     }
+    return res;
+}
 
+std::vector<size_t> matrix::get_g_s_p(ptrdiff_t f, ptrdiff_t s) const {
+    if (s <= f) {
+        return {};
+    }
+    auto indeces = get_g_s(f);
+    auto snd = retrieve(get_g_s(f)).get_g_p(s);
+    std::vector<size_t> res;
+    for (size_t i = 0; i < snd.size(); ++i) {
+        res.push_back(indeces[snd[i]]);
+    }
     return res;
 }
 
@@ -414,6 +448,19 @@ matrix matrix::operator+(matrix const& o) const {
         mt[i] += o[i];
     }
     return mt;
+}
+
+lin_vector matrix::get_and_multiply(const lin_vector& get) const {
+    if (get.size() != size()) {
+        throw std::logic_error("get and multiply: sizes are not matched");
+    }
+    lin_vector res(at(0).size(), true);
+    for (size_t i = 0; i < size(); ++i) {
+        if (get.at(i)) {
+            res.multiply(at(i));
+        }
+    }
+    return res;
 }
 
 }
