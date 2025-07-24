@@ -1,6 +1,8 @@
 #include "linalg.h"
 #include "encoder.h"
+#include "src/encoder.h"
 #include "src/linalg.h"
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
@@ -56,47 +58,48 @@ std::vector<double> send(linalg::lin_vector const& message, std::normal_distribu
 }
 
 // returns number of correct decoded messages
-std::pair<size_t, size_t> emulate(size_t n, size_t k, linalg::matrix const& gen_matrix, size_t w_max, 
-            size_t errors, double deviation) {
+std::vector<size_t> emulate(size_t n, size_t k, linalg::matrix const& gen_matrix, 
+            size_t errors, double deviation, bool g, bool u) {
                 
     
     encoding::encoder enc = {gen_matrix};
-    encoding::trellis_based_rml_decoder dec(gen_matrix, false, false);
+    // encoding::trellis_based_rml_decoder checking_dec(gen_matrix, false, false);
     std::normal_distribution<double> norm(0.0, deviation);
     size_t iterations = 0;
     size_t cnt = 0;
+    size_t adds = 0;
+    size_t cmps = 0;
+    encoding::trellis_based_rml_decoder dec(gen_matrix, g,u);
     std::vector<double> rels(n, 1.0);
     while (iterations - cnt < errors) {
-
         auto message = gen_vect(k);
         auto encoded = enc.encode(message);
-        // std::cout << "encoded: " << encoded.to_string() << "\n";
         auto snd = send(encoded, norm);
         auto decoded = dec.decode(snd);
+        adds = std::max(adds, dec._additions);
+        cmps = std::max(cmps, dec._comparisons);
+        // std::cout << encoded.to_string() << " " << decoded.to_string() << " " << message.to_string() << "\n";
+        // auto check_decoded = checking_dec.decode(snd);
         if (decoded == message) {
             ++cnt;
         } else {
-            // if (decoded.size() != encoded.size()) {
-                std::cout << decoded.to_string() << " " << encoded.to_string() << " " << message.to_string() << "\n";
-                for (auto i : snd) {
-                    std::cout << i << ", ";
-                }
-                std::cout << "\n";
+            // std::cout << message.to_string() << " " << encoded.to_string() << " " << decoded.to_string() << " " << (decoded * gen_matrix).to_string() << "\n";
+            // for (auto d : snd) {
+            //     std::cout << d << ", ";
             // }
-        }
-        if (iterations % 100000 == 0) {
-            std::cout << iterations << " " << deviation << '\n';
-            // std::cout << "vects: " << encoded.to_string() << " " << decoded.to_string() << " " << (decoded == encoded) << "\n";
+            // std::cout << "\n";
         }
         ++iterations;
     }
-    return std::make_pair(iterations, cnt);
+    return {iterations, cnt, adds, cmps};
 }
 
-void make_and_put_samples(std::ofstream &out, linalg::matrix const& gen_matrix, size_t n, size_t k, size_t w_max, size_t errors, double step) {
+void make_and_put_samples(std::ofstream &out, linalg::matrix const& gen_matrix, size_t n, size_t k, size_t errors, double step, bool g, bool u) {
     double signal_noise = -2;
+
+    signal_noise = 1;
     
-    while (signal_noise <= 5) {
+    while (signal_noise <= 2) {
         // Eb / N = signal_noise,
         // Es = 1
         // Es / (Rc*N) = signal_noise,
@@ -105,8 +108,8 @@ void make_and_put_samples(std::ofstream &out, linalg::matrix const& gen_matrix, 
         // so N = 1 / signal_noise =  n / (k * 10^(0.1 signal_noise)) = n * 10^(-0.1*signal_noise) / k 
         double twice_noise_var = std::pow(10, -0.1*signal_noise) * n / k;
         // N = 2 * \sigma ^ 2 -> \sigma = sqrt(N / 2)
-        auto res = emulate(n, k, gen_matrix, w_max, errors, sqrt(twice_noise_var / 2));
-        out << w_max << " " << res.first << " " << res.second << " " << static_cast<double>(res.second) / res.first << " " << signal_noise  << '\n';
+        auto res = emulate(n, k, gen_matrix, errors, sqrt(twice_noise_var / 2), g, u);
+        out << res[0] << " " << res[1] << " " << static_cast<double>(res[1]) / res[0] << " " << signal_noise << " " << res[2] << " " << res[3] << " " << (res[2] + res[3]) << '\n';
 
         signal_noise += step;
     }
@@ -114,29 +117,26 @@ void make_and_put_samples(std::ofstream &out, linalg::matrix const& gen_matrix, 
 
 int main(int argc, const char* argv[]) {
     if (argc < 6) {
-        std::cout << "expected args: input_file, output_file, w_max, iters, step\n";
+        std::cout << "expected args: output_file, errors, step, g, u\n";
         return -1;
     }
 
-    std::ifstream in(argv[1]);
-    if (in.bad()) {
-        std::cout << "could not open input file\n";
-        return -1;
-    }
     
-    std::ofstream out(argv[2]);
+    std::ofstream out(argv[1]);
     if (out.bad()) {
         std::cout << "could not open input file\n";
         return -1;
     }
 
-    size_t w_max, errors;
+    size_t errors;
     double step;
+    bool g, u;
 
     try {
-        w_max = std::stoull(argv[3]);
-        errors = std::stoull(argv[4]);
-        step = std::stod(argv[5]);
+        errors = std::stoull(argv[2]);
+        step = std::stod(argv[3]);
+        g = std::stod(argv[4]);
+        u = std::stod(argv[5]);
     } catch(std::invalid_argument const& e) {
         std::cout << "could not parse numeric args: " << e.what();
         return -1;
@@ -146,56 +146,26 @@ int main(int argc, const char* argv[]) {
     }
 
     size_t n, k;
-    in >> n >> k;
+    // in >> n >> k;
 
-    linalg::matrix gen;
-    for (size_t i = 0; i < k; ++i) {
-        std::string s;
-        in >> s;
-        gen.push_back(string_to_vec(s));
-    }
+    linalg::matrix gen = encoding::build_rm_code(6, 2);
+    n = 64;
+    k = gen.size();
+    make_and_put_samples(out, gen, n, k, errors, step, g, u);
+    gen = encoding::build_rm_code(6, 3);
+    n = 64;
+    k = gen.size();
+    make_and_put_samples(out, gen, n, k, errors, step, g, u);
+    gen = encoding::build_rm_code(6, 4);
+    n = 64;
+    k = gen.size();
+    make_and_put_samples(out, gen, n, k, errors, step, g, u);
+    // gen = encoding::build_rm_code(5, 2);
+    // n = 32;
+    // k = gen.size();
+    // make_and_put_samples(out, gen, n, k, errors, step, g, u);
 
-    linalg::matrix shifts(gen.size(), linalg::lin_vector(n, false));
 
-    gen.make_tof(shifts);
-    std::cout << "{";
-    for (auto const& v : gen) {
-        std::cout << "{";
-        for (auto b : v) {
-            std::cout << b << ", ";
-        }
-        std::cout << "},\n";
-    }
-    std::cout << "};\n";
-
-    gen =  {
-        {1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-        {0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-        {0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-        {0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0 },
-        {0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-        {0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0 },
-        {0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0 },
-        {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0 },
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0 },
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0 },
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0 },
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1}
-    };
-    // std::cout << gen.to_string() << "\n";
-
-    // for (size_t i = 0; i < basis.first.size(); ++i) {
-    //     if (basis.first[i] != i) {
-    //         for (size_t j = 0; j < gen.size(); ++j) {
-    //             using std::swap;
-    //             swap(gen[j][i], gen[j][basis.first[i]]);
-    //         }
-    //     }
-    // }
-    make_and_put_samples(out, gen, n, k, w_max, errors, step);
+    // make_and_put_samples(out, gen, n, k, errors, step);
     return 0;
 }
