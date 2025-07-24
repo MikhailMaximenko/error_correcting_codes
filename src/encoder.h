@@ -37,6 +37,7 @@ struct hamming_metric {
     double count(linalg::lin_vector const& vect) const;
 
     double count(linalg::lin_vector const& vect, size_t begin, size_t end) const;
+    double count_diff(linalg::lin_vector const& vect1, linalg::lin_vector const& vect2, size_t begin, size_t end, size_t & add_cnt) const;
 };
 
 struct decoder {
@@ -52,8 +53,7 @@ struct decoder {
 
 
 struct trellis_based_rml_decoder {
-    const size_t MAKE_CBT = 1;
-    linalg::matrix _gen;
+    const linalg::matrix _gen;
     bool g{false};
     bool u{false};
 
@@ -61,6 +61,8 @@ struct trellis_based_rml_decoder {
     size_t _additions{0};
 
     std::vector<std::vector<linalg::matrix>> _special_matrices; // lets store all the special matrices as we need to compute it ones
+
+    std::vector<std::vector<std::pair<size_t, size_t>>> _partiotions; // store all partitions
 
     std::vector<std::vector<linalg::lin_vector>> _gray_codes; // contains all the gray codes of dims 0 to max(p_x_y(C)), where x, y are bounds of make_cbt procedure
 
@@ -73,7 +75,8 @@ struct trellis_based_rml_decoder {
 
     trellis_based_rml_decoder(linalg::matrix const& mt, bool use_grey_code, bool use_uniform_optimization);
 
-    size_t count_partition(size_t x, size_t y);
+    void count_partition(size_t x, size_t y);
+    void count_partitions();
 
     void build_special_matrix(size_t x, size_t y);
 
@@ -87,20 +90,14 @@ struct trellis_based_rml_decoder {
 
     void make_uniform_decomposition(size_t x, size_t z, size_t y);
 
-    void find_parallel_components(size_t x, size_t z, size_t y);
-
-    bool compare_parallel_components(trellis&, size_t, size_t);
-
-    void partition_parallel_components(trellis&);
-
-    void partition_component(trellis&);
+    size_t get_nu(size_t x, size_t z, size_t y);
 
     void build_gray_codes(size_t n);
 
     std::pair<linalg::matrix, linalg::matrix>
         find_interesting_ctors(size_t, size_t, size_t);
 
-    void prepare_make_cbt_u(size_t x, size_t y);
+    void prepare_make_cbt_i(size_t x, size_t y);
     
     void prepare_make_cbt_g(size_t x, size_t y);
 

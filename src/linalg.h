@@ -55,7 +55,7 @@ struct matrix : std::vector<lin_vector> {
 
     void permutate(std::vector<size_t> const&);
 
-    void make_tof() noexcept;
+    void make_tof();
 
     std::vector<size_t> get_g_s(ptrdiff_t) const;
 
@@ -80,6 +80,10 @@ struct matrix : std::vector<lin_vector> {
     matrix operator+(matrix const&) const;
 
     lin_vector get_and_multiply(lin_vector const&) const;
+
+    size_t get_c_tr_ctors_number(size_t) const;
+
+    bool is_tof() const noexcept;
 };
 
 } // namespace linalg

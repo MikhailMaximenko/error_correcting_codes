@@ -29,10 +29,11 @@ struct trellis {
     std::vector<std::vector<std::vector<std::pair<double, size_t>>>> _inner_branches; // for each compgroup for each group store sorted ctors from x to z
     std::vector<std::vector<std::vector<std::map<linalg::lin_vector, std::pair<linalg::lin_vector, double>>>>> _group_cache; // for each comp for each group pair store a map of results
 
+    std::vector<std::pair<double, std::pair<size_t, size_t>>> _heap_storage;
     
     bool check_vert_in_group(size_t, size_t, size_t) const noexcept;
     bool check_comp_in_group(size_t) const noexcept;
-    bool compare_verteces(size_t, size_t) const noexcept;
+    bool compare_verteces(size_t, size_t, size_t) const noexcept;
     bool compare_parallel_components(size_t fst, size_t snd) const noexcept;
     void partition_parallel_components();
 

@@ -26,12 +26,12 @@ bool trellis::check_comp_in_group(size_t comp) const noexcept {
     }
     return false;
 }
-bool trellis::compare_verteces(size_t fst, size_t snd) const noexcept {
-    if (_sections[0][fst]._next.size() != _sections[0][snd]._next.size()) {
+bool trellis::compare_verteces(size_t section, size_t fst, size_t snd) const noexcept {
+    if (_sections[section][fst]._next.size() != _sections[section][snd]._next.size()) {
         return false;
     }
-    auto it1 = _sections[0][fst]._next.begin();
-    auto it2 = _sections[0][snd]._next.begin();
+    auto it1 = _sections[section][fst]._next.begin();
+    auto it2 = _sections[section][snd]._next.begin();
     while (it1 != _sections[0][fst]._next.end() && it2 != _sections[0][snd]._next.end()) {
         if (it1->first != it2->first) {
             return false;
@@ -46,7 +46,7 @@ bool trellis::compare_parallel_components(size_t fst, size_t snd) const noexcept
     for (size_t i : _parallel_components[fst][0]) {
         bool f = false;
         for (size_t j : _parallel_components[snd][0]) {
-            if (compare_verteces(i, j)) {
+            if (compare_verteces(0, i, j)) {
                 f = true;
                 break;
             }
@@ -85,7 +85,7 @@ void trellis::partition_group(size_t comp) {
             _groups[comp][0].back().insert(_parallel_components[comp][0][i]);
         }
         for (size_t j = i + 1; j < _parallel_components[comp][0].size(); ++j) {
-            if (compare_verteces( _parallel_components[comp][0][i], _parallel_components[comp][0][j])) {
+            if (compare_verteces(0, _parallel_components[comp][0][i], _parallel_components[comp][0][j])) {
                 _groups[comp][0].back().insert(_parallel_components[comp][0][j]);
             }
         }
@@ -149,6 +149,8 @@ void trellis::init_branches_arrays() {
             }
         }
     }
+
+    _heap_storage.reserve(_groups[0][0][0].size());
 
 }
 

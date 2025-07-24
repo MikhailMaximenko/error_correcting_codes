@@ -173,7 +173,7 @@ bool lin_vector::all_zeros(size_t from, size_t to) const {
     for (size_t i = from; i < to; ++i) {
         flag |= at(i);
     }
-    return flag;
+    return !flag;
 }
 
 lin_vector lin_vector::puncture(size_t x, size_t y) const {
@@ -328,7 +328,7 @@ std::pair<std::vector<size_t>, matrix> matrix::resolve_basis() {
     return std::make_pair(std::move(basis_pos), std::move(transformation)); 
 }
 
-void matrix::make_tof() noexcept {
+void matrix::make_tof() {
     for (size_t i = 0; i < size(); ++i) {
         size_t best_leading = 10e9;
         size_t best_number;
@@ -340,7 +340,8 @@ void matrix::make_tof() noexcept {
             }
         }
         if (best_leading == (*this)[i].size()) {
-            return;
+            throw std::logic_error("not a basis");
+            break;
         }
         using std::swap;
         swap((*this)[i], (*this)[best_number]);
@@ -351,12 +352,16 @@ void matrix::make_tof() noexcept {
         }
     }
 
-    for (ptrdiff_t i = size() - 1; i >= 0; --i) {
+    for (ptrdiff_t i = size() - 1; i > 0; --i) {
         for (ptrdiff_t j = i - 1; j >= 0; --j) {
-            if ((*this)[j].trailing() == (*this)[i].trailing()) {
+            if ((*this)[j][(*this)[i].trailing()]) {
                 (*this)[j] += (*this)[i]; 
             }
         }
+    }
+
+    if (!is_tof()) {
+        throw std::logic_error("cant be not in tof");
     }
 
 }
@@ -463,4 +468,37 @@ lin_vector matrix::get_and_multiply(const lin_vector& get) const {
     return res;
 }
 
+size_t matrix::get_c_tr_ctors_number(size_t t) const {
+    size_t tr_ctors = 0;
+    for (auto const & v : *this) {
+        if (v.trailing() < t) {
+            ++tr_ctors;
+        }
+    }
+    return tr_ctors;
+}
+bool matrix::is_tof() const noexcept {
+    ptrdiff_t prev = -1;
+
+    for (auto const & v : *this) {
+        if (((ptrdiff_t) v.leading()) <= prev) {
+            return false;
+        } else {
+            prev = v.leading();
+        }
+    }
+
+    std::set<size_t> last;
+
+    for (auto const & v : *this) {
+        if (last.find(v.trailing()) != last.end()) {
+            return false;
+        } else {
+            last.insert(v.trailing());
+        }
+    }
+
+    return true;
+
+}
 }
