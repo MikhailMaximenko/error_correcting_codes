@@ -2,7 +2,11 @@ cmake_minimum_required(VERSION 3.21)
 
 project(task1)
 set(cmake_cxx_standart_required 23)
+
 find_package(GTest REQUIRED)
+
+# add_compile_options(-fsanitize=address,undefined,leak -fno-sanitize-recover=all)
+# add_link_options(-fsanitize=address,undefined,leak)
 
 file(GLOB HEADERS src/*.h)
 file(GLOB SOURCES src/*.cpp)
