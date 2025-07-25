@@ -3,7 +3,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <iostream>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -114,8 +113,6 @@ std::string lin_vector::to_string() const {
         } else {
             res.push_back('0');
         }
-        // res.push_back(',');
-        // res.push_back(' ');
     }
     return res;
 }
