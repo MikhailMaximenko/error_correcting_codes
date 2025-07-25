@@ -5,9 +5,12 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <functional>
 #include <iostream>
 #include <limits>
+#include <ostream>
 #include <queue>
+#include <set>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -36,6 +39,7 @@ linalg::matrix build_rm_code(size_t m, size_t r) {
         } while (std::next_permutation(mask.begin(), mask.end()));
     }
     res.make_tof();
+    // std::cout << res.to_string() << "\n";
     return res;
 }
 
@@ -213,6 +217,9 @@ linalg::lin_vector decoder::decode(linalg::lin_vector const& hard_decisions, std
     return res_decision;
 };
 
+
+
+
 trellis_based_rml_decoder::trellis_based_rml_decoder(linalg::matrix const& mt, bool use_grey_code, bool use_uniform_optimization) : _gen(mt) , g(use_grey_code) , u(use_uniform_optimization) 
     , _special_matrices(_gen[0].size(), std::vector<linalg::matrix>(_gen[0].size()))
     , _partiotions(_gen[0].size(), std::vector<std::pair<size_t, size_t>>(_gen[0].size()))
@@ -225,13 +232,29 @@ trellis_based_rml_decoder::trellis_based_rml_decoder(linalg::matrix const& mt, b
         throw std::logic_error("matrix should be in tof");
     }
     count_partitions();
+    std::cout << "partitions counted\n";
+    for (auto const & xs : _partiotions) {
+        for (auto const & ys : xs) {
+            std::cout << ys.first << " ";
+        }
+        std::cout << "\n";
+    }
+    std::cout << "metrics\n";
+    for (auto const & xs : _partiotions) {
+        for (auto const & ys : xs) {
+            std::cout << ys.second << " ";
+        }
+        std::cout << "\n";
+    }
     init(0, _gen[0].size());
+    // std::cout << "inited\n";
 }
 
 void trellis_based_rml_decoder::init(size_t x, size_t y) {
     build_special_matrix(x, y);
     size_t z = _partiotions[x][y-1].first;
 
+    // std::cout << x << " " << y << "\n";
     if (x != z) {
         init(x, z);
         init(z, y);
@@ -319,6 +342,7 @@ void trellis_based_rml_decoder::count_partitions() {
     for (size_t xs = 0; xs < _special_matrices.size(); ++xs) {
         for (size_t ys = xs; ys < _special_matrices[xs].size(); ++ys) {
             _special_matrices[xs][ys].clear();
+            _trellises[xs][ys] = {};
         }
     }
 }
@@ -632,6 +656,13 @@ void trellis_based_rml_decoder::prepare_make_cbt_g(size_t x, size_t y) {
 
 
 void trellis_based_rml_decoder::make_cbt_i(size_t x, size_t y, hamming_metric const& metric) {
+    // size_t tr_ctors = 0;
+    // for (auto const & v : _special_matrices[x][y-1]) {
+    //     if (v.trailing() < (y - x)) {
+    //         ++tr_ctors;
+    //     }
+    // }
+    // _comparisons += (y - x - 1) * (1 << (_special_matrices[x][y-1].size())) + (1 << (_special_matrices[x][y-1].size() - tr_ctors)) * ((1 << tr_ctors) - 1);
     for (auto const& p : _ctors_for_make_cbt[x][y-1]) {
         double score = metric.count(p.second, x, y);
         _additions += (y - x - 1);
@@ -645,6 +676,14 @@ void trellis_based_rml_decoder::make_cbt_i(size_t x, size_t y, hamming_metric co
 }
 
 void trellis_based_rml_decoder::make_cbt_g(size_t x, size_t y, hamming_metric const& metric) {
+    // size_t tr_ctors = 0;
+    // for (auto const & v : _special_matrices[x][y-1]) {
+    //     if (v.trailing() < (y - x)) {
+    //         ++tr_ctors;
+    //     }
+    // }
+    // _comparisons += (y - x - 1) * (1 << (_special_matrices[x][y-1].size())) + (1 << (_special_matrices[x][y-1].size() - tr_ctors)) * ((1 << tr_ctors) - 1);
+    // std::cout << "here\n" << x << " " << y << "\n" << _ctors_for_make_cbt[x][y-1][0].second.to_string() << "\n";
     double score = metric.count(_ctors_for_make_cbt[x][y-1][0].second, x, y);
     _additions += y - x - 1;
     linalg::lin_vector const* prev = &_ctors_for_make_cbt[x][y-1][0].second;
@@ -703,6 +742,8 @@ void trellis_based_rml_decoder::comb_cbt_v(size_t x, size_t y, hamming_metric co
 
     auto const& tr = _trellises[x][y-1];
 
+    // _additions += (tr._sections[1].size()) * (tr._sections[1][0]._next.size() * 2 - 1);
+
     for (size_t y_state = 0; y_state < tr._sections[1].size(); ++y_state) {
         linalg::lin_vector const& coset = tr._sections[1][y_state]._incoming_coset;
         auto & r = _cbt[x][y-1][coset];
@@ -748,7 +789,6 @@ void trellis_based_rml_decoder::comb_cbt_u(size_t x, size_t y, hamming_metric co
                 for (auto & it : gr) {
                     it.first = _cbt[z][y-1][it.second].second;
                 }
-                // f2
                 std::sort(gr.begin(), gr.end(), [&](std::pair<double, linalg::lin_vector> const& a, std::pair<double, linalg::lin_vector> const & b) {
                     ++_comparisons;
                     return a.first < b.first;
@@ -762,7 +802,6 @@ void trellis_based_rml_decoder::comb_cbt_u(size_t x, size_t y, hamming_metric co
             for (auto & it : group) {
                 it.first = _cbt[x][z-1][tr._sections[0][it.second]._incoming_coset].second;
             }
-            // f1
             std::sort(group.begin(), group.end(),[&](std::pair<double, size_t> const& a, std::pair<double, size_t> const & b) {
                 ++_comparisons;
                 return a.first < b.first;
@@ -778,63 +817,42 @@ void trellis_based_rml_decoder::comb_cbt_u(size_t x, size_t y, hamming_metric co
                     // considering left and right groups
 
                     // use touples instead of pairs
-                     std::priority_queue pq(tr._heap_storage.begin(), tr._heap_storage.end(), [&](std::pair<double, std::pair<size_t, size_t>> & a, std::pair<double, std::pair<size_t, size_t>> & b) {
-                        if (a.second.first >= b.second.first && a.second.second >= b.second.second) {
-                            return true;
-                        }
-                        if (a.second.first <= b.second.first && a.second.second <= b.second.second) {
-                            return false;
-                        }
-                        if (std::isinf(a.first)) {
-                            ++_additions;
-                            a.first = tr._inner_branches[component][i][a.second.first].first + tr._branches[comp_group][i][j][a.second.second].first;
-                        }
-                        if (std::isinf(b.first)) {
-                            ++_additions;
-                            b.first = tr._inner_branches[component][i][b.second.first].first + tr._branches[comp_group][i][j][b.second.second].first;
-                        }
+                     std::priority_queue pq(tr._heap_storage.begin(), tr._heap_storage.end(), [&](std::pair<double, std::pair<size_t, size_t>> const& a, std::pair<double, std::pair<size_t, size_t>> const & b) {
                         ++_comparisons;
                         return a.first > b.first;
                     });
 
+                    size_t b_z = 0;
+                    size_t b_y = 0;
                     size_t cnt = 0;
 
                     for (size_t b_z = 0; b_z < nu; ++b_z) {
-                        pq.push({std::numeric_limits<double>::infinity(), {b_z, 0}});
+                        ++_additions;
+                        double cur_metric = tr._inner_branches[component][i][b_z].first + tr._branches[comp_group][i][j][0].first; 
+                        pq.push({cur_metric, {b_z, 0}});
                     }
 
-                    while (cnt < nu) { // f3
+                    while (cnt < nu) {
                         auto const& cur = pq.top();
-                        double metric = cur.first;
-                        size_t b_z = cur.second.first;
-                        size_t b_y = cur.second.second;
+                        b_z = cur.second.first;
+                        b_y = cur.second.second;
                         size_t left_node = tr._inner_branches[component][i][b_z].second;
                         linalg::lin_vector const& transition = tr._branches[comp_group][i][j][b_y].second;
                         linalg::lin_vector const& cur_coset = tr._sections[1][tr._sections[0][left_node]._next[transition]]._incoming_coset;
                         if (tr._group_cache[component][i][j].find(cur_coset) == tr._group_cache[component][i][j].end() || std::isinf(tr._group_cache[component][i][j][cur_coset].second)) {
-                            if (std::isinf(metric)) {
-                                ++_additions;
-                                metric = tr._inner_branches[component][i][b_z].first + tr._branches[comp_group][i][j][b_y].first;
-                            }
-                            tr._group_cache[component][i][j][cur_coset] = {_cbt[x][z-1][tr._sections[0][left_node]._incoming_coset].first.concat(_cbt[z][y-1][transition].first), metric};
+                            tr._group_cache[component][i][j][cur_coset] = {_cbt[x][z-1][tr._sections[0][left_node]._incoming_coset].first.concat(_cbt[z][y-1][transition].first), cur.first};
                             ++cnt;
                         }
-                        pq.pop();
-                        linalg::lin_vector const* trans;
-                        linalg::lin_vector const* cst;
-                        do { // skip b_ys if the best metric was already found
-                            ++b_y;
-                            if (b_y < nu) {
-                                trans = &tr._branches[comp_group][i][j][b_y].second;
-                                cst = &tr._sections[1][tr._sections[0][left_node]._next[*trans]]._incoming_coset;
-                            }
-                        } while(b_y < nu && !(tr._group_cache[component][i][j].find(*cst) == tr._group_cache[component][i][j].end() || std::isinf(tr._group_cache[component][i][j][*cst].second)));
+                        ++b_y;
                         if (b_y < nu) {
-                            pq.push({std::numeric_limits<double>::infinity(), {b_z, b_y}});  
+                            ++_additions;
+                            double cur_metric = tr._inner_branches[component][i][b_z].first + tr._branches[comp_group][i][j][b_y].first;
+                            pq.pop();
+                            pq.push({cur_metric, {b_z, b_y}});  
                         }
                     }
 
-                    for (auto & br : tr._group_cache[component][i][j]) { // f4
+                    for (auto & br : tr._group_cache[component][i][j]) {
                         if (!std::isinf(_cbt[x][y-1][br.first].second)) {
                             ++_comparisons;
                         }
@@ -862,6 +880,7 @@ linalg::lin_vector trellis_based_rml_decoder::decode(linalg::lin_vector const& d
     for (size_t xs = 0; xs < _cbt.size(); ++xs) { // reset _cbt
         for (size_t ys = 0; ys < _cbt[xs].size(); ++ys) {
             for (auto& br : _cbt[xs][ys]) {
+                // if (xs == 0 && ys < 8) std::cout << xs << " " << ys << " " << br.first.to_string() << " " << br.second.first.to_string() << " " << br.second.second << "\n"; 
                 _cbt[xs][ys][br.first] = {linalg::lin_vector(), std::numeric_limits<double>::infinity()};
             }
         }

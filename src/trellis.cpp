@@ -1,7 +1,9 @@
 #include "trellis.h"
 #include <cassert>
 #include <cstddef>
+#include <iostream>
 #include <limits>
+#include <ostream>
 #include <set>
 #include <vector>
 
@@ -149,5 +151,7 @@ void trellis::init_branches_arrays() {
     }
 
     _heap_storage.reserve(_groups[0][0][0].size());
+
 }
+
 }
