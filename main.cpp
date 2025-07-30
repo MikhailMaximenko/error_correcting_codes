@@ -1,9 +1,6 @@
 #include "linalg.h"
 #include "encoder.h"
-#include "src/encoder.h"
-#include "src/linalg.h"
 #include <algorithm>
-#include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <fstream>

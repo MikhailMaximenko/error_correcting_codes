@@ -14,6 +14,16 @@ struct matrix;
 struct lin_vector : std::vector<bool> {
     using std::vector<bool>::vector;
 
+    lin_vector() = default;
+    lin_vector(lin_vector const&) = default;
+    lin_vector(lin_vector &&) = default;
+
+    lin_vector& operator=(lin_vector const&) = default;
+    lin_vector& operator=(lin_vector &&) = default;
+
+    ~lin_vector() = default;
+
+
     lin_vector(size_t, size_t);
 
     lin_vector& operator+=(lin_vector const&);

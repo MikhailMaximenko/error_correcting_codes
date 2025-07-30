@@ -5,7 +5,6 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
-#include <iostream>
 #include <limits>
 #include <queue>
 #include <stdexcept>
@@ -777,8 +776,7 @@ void trellis_based_rml_decoder::comb_cbt_u(size_t x, size_t y, hamming_metric co
                     size_t nu = tr._groups[comp_group][0][i].size();
                     // considering left and right groups
 
-                    // use touples instead of pairs
-                     std::priority_queue pq(tr._heap_storage.begin(), tr._heap_storage.end(), [&](std::pair<double, std::pair<size_t, size_t>> & a, std::pair<double, std::pair<size_t, size_t>> & b) {
+                    auto cmp = [&](std::pair<double, std::pair<size_t, size_t>> & a, std::pair<double, std::pair<size_t, size_t>> & b) {
                         if (a.second.first >= b.second.first && a.second.second >= b.second.second) {
                             return true;
                         }
@@ -795,7 +793,10 @@ void trellis_based_rml_decoder::comb_cbt_u(size_t x, size_t y, hamming_metric co
                         }
                         ++_comparisons;
                         return a.first > b.first;
-                    });
+                    };
+
+                    // use touples instead of pairs
+                     std::priority_queue<std::pair<double, std::pair<size_t, size_t>>, std::vector<std::pair<double, std::pair<size_t, size_t>>>, decltype(cmp)> pq (tr._heap_storage.begin(), tr._heap_storage.end(), cmp);
 
                     size_t cnt = 0;
 
