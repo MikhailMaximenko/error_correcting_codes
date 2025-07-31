@@ -1,0 +1,4 @@
+fields: total iterations, correct answers, error rate, noise (dB), max adds, max comparisons, max total
+87 37 0.425287 0 165040 158719 323759
+131 81 0.618321 1 165040 158719 323759
+448 398 0.888393 2 165040 158719 323759

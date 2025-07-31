@@ -1,0 +1,4 @@
+fields: total iterations, correct answers, error rate, noise (dB), max adds, max comparisons, max total, upper bound
+104 4 0.0384615 0 964 2483 3447 4117
+121 21 0.173554 1 963 2516 3479 4117
+171 71 0.415205 2 960 2438 3398 4117
