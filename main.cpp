@@ -84,10 +84,10 @@ std::vector<size_t> emulate(size_t n, size_t k, linalg::matrix const& gen_matrix
     return {iterations, cnt, adds, cmps};
 }
 
-void make_and_put_samples(std::ofstream &out, linalg::matrix const& gen_matrix, size_t n, size_t k, size_t errors, double step, bool g, bool u) {
+void make_and_put_samples(std::ofstream &out, linalg::matrix const& gen_matrix, size_t n, size_t k, size_t errors, double step, double max_noise, bool g, bool u) {
     double signal_noise = 0;
     
-    while (signal_noise <= 2) {
+    while (signal_noise <= max_noise) {
         // Eb / N = signal_noise,
         // Es = 1
         // Es / (Rc*N) = signal_noise,
@@ -108,8 +108,8 @@ void make_and_put_samples(std::ofstream &out, linalg::matrix const& gen_matrix, 
 }
 
 int main(int argc, const char* argv[]) {
-    if (argc < 7) {
-        std::cout << "expected args: input_file, output_file, errors, step, g, u\n";
+    if (argc < 8) {
+        std::cout << "expected args: input_file, output_file, errors, step, max noise, g, u\n";
         return -1;
     }
 
@@ -127,14 +127,15 @@ int main(int argc, const char* argv[]) {
     }
 
     size_t errors;
-    double step;
+    double step, max_noise;
     bool g, u;
 
     try {
         errors = std::stoull(argv[3]);
         step = std::stod(argv[4]);
-        g = std::stod(argv[5]);
-        u = std::stod(argv[6]);
+        max_noise = std::stod(argv[5]);
+        g = std::stod(argv[6]);
+        u = std::stod(argv[7]);
     } catch(std::invalid_argument const& e) {
         std::cout << "could not parse numeric args: " << e.what();
         return -1;
@@ -163,6 +164,6 @@ int main(int argc, const char* argv[]) {
     }
     gen.make_tof();
 
-    make_and_put_samples(out, gen, n, k, errors, step, g, u);
+    make_and_put_samples(out, gen, n, k, errors, step, max_noise, g, u);
     return 0;
 }
