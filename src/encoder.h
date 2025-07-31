@@ -3,7 +3,6 @@
 
 #include "linalg.h"
 #include "trellis.h"
-#include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <iterator>

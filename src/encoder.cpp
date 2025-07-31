@@ -2,7 +2,6 @@
 #include "linalg.h"
 #include "trellis.h"
 #include <algorithm>
-#include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <limits>
@@ -41,7 +40,6 @@ linalg::matrix build_rm_code(size_t m, size_t r) {
 hamming_metric::hamming_metric(linalg::lin_vector const& vect, std::vector<double> const& rels) : _given(vect) , _rels(rels) {}
 
 double hamming_metric::count(linalg::lin_vector const& vect) const {
-    assert(vect.size() == _given.size());
     return count(vect, 0, vect.size());
 }
 

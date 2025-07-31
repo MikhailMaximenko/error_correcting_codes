@@ -1,5 +1,4 @@
 #include "trellis.h"
-#include <cassert>
 #include <cstddef>
 #include <limits>
 #include <set>
