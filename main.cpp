@@ -108,13 +108,19 @@ void make_and_put_samples(std::ofstream &out, linalg::matrix const& gen_matrix, 
 }
 
 int main(int argc, const char* argv[]) {
-    if (argc < 6) {
-        std::cout << "expected args: output_file, errors, step, g, u\n";
+    if (argc < 7) {
+        std::cout << "expected args: input_file, output_file, errors, step, g, u\n";
         return -1;
     }
 
     
-    std::ofstream out(argv[1]);
+    std::ifstream in(argv[1]);
+    if (in.bad()) {
+        std::cout << "could not open input file\n";
+        return -1;
+    }
+    
+    std::ofstream out(argv[2]);
     if (out.bad()) {
         std::cout << "could not open input file\n";
         return -1;
@@ -125,10 +131,10 @@ int main(int argc, const char* argv[]) {
     bool g, u;
 
     try {
-        errors = std::stoull(argv[2]);
-        step = std::stod(argv[3]);
-        g = std::stod(argv[4]);
-        u = std::stod(argv[5]);
+        errors = std::stoull(argv[3]);
+        step = std::stod(argv[4]);
+        g = std::stod(argv[5]);
+        u = std::stod(argv[6]);
     } catch(std::invalid_argument const& e) {
         std::cout << "could not parse numeric args: " << e.what();
         return -1;
@@ -143,20 +149,20 @@ int main(int argc, const char* argv[]) {
     } else {
         out << "fields: total iterations, correct answers, error rate, noise (dB), max adds, max comparisons, max total\n";
     }
-    linalg::matrix gen = encoding::build_rm_code(6, 2);
-    out << "emulating RM_6_2:\n";
-    n = 64;
-    k = gen.size();
-    make_and_put_samples(out, gen, n, k, errors, step, g, u);
-    out << "emulating RM_6_3:\n";
-    gen = encoding::build_rm_code(6, 3);
-    n = 64;
-    k = gen.size();
-    make_and_put_samples(out, gen, n, k, errors, step, g, u);
-    out << "emulating RM_6_4:\n";
-    gen = encoding::build_rm_code(6, 4);
-    n = 64;
-    k = gen.size();
+    linalg::matrix gen;
+    in >> n >> k;
+
+    for (size_t i = 0; i < k; ++i) {
+        linalg::lin_vector v;
+        std::string s;
+        in >> s;
+        for (char ch : s) {
+            v.push_back(ch - '0');
+        }
+        gen.push_back(v);
+    }
+    gen.make_tof();
+
     make_and_put_samples(out, gen, n, k, errors, step, g, u);
     return 0;
 }
