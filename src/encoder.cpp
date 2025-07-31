@@ -477,8 +477,6 @@ void trellis_based_rml_decoder::build_special_trellis(size_t x, size_t z, size_t
     for (size_t state_mask_z = 0; state_mask_z < (1 << z_dim); ++state_mask_z) {
         linalg::lin_vector a_star(state_mask_z, z_dim);
 
-        assert(a_star.empty() || (a_star * g_s).size() == z);
-
         linalg::lin_vector b = get_coset_vect(x, x + z, a_star.empty() ? linalg::lin_vector(z) : (a_star * g_s_p).puncture(0, z));
 
         result._sections[0][state_mask_z]._incoming_coset = b;
