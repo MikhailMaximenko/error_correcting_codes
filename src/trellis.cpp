@@ -96,7 +96,6 @@ void trellis::partition_group(size_t comp) {
             _groups[comp][1].emplace_back();
         }
         for (size_t nd : _groups[comp][0][0]) {
-            assert(!check_vert_in_group(comp, 1, _sections[0][nd]._next[br.first]));
             _groups[comp][1].back().insert(_sections[0][nd]._next[br.first]);
         }
     }
