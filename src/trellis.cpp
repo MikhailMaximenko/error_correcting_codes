@@ -1,4 +1,5 @@
 #include "trellis.h"
+#include "linalg.h"
 #include <cstddef>
 #include <limits>
 #include <set>
@@ -142,6 +143,11 @@ void trellis::init_branches_arrays() {
             _group_cache[comp].resize(_groups[comp][0].size());
             for (auto & it : _group_cache[comp]) {
                 it.resize(_groups[comp][1].size());
+                for (size_t i = 0; i < _groups[comp][1].size(); ++i) {
+                    for (size_t vert : _groups[comp][1][i]) {
+                        it[i][_sections[1][vert]._incoming_coset] = {linalg::lin_vector(_sections[1][vert]._incoming_coset.size(), false), std::numeric_limits<double>::infinity()}; 
+                    }
+                }
             }
         }
     }

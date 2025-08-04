@@ -7,11 +7,11 @@
 #include <cstddef>
 #include <iterator>
 #include <limits>
-#include <map>
 #include <memory>
 #include <ostream>
 #include <set>
 #include <stdexcept>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -65,12 +65,16 @@ struct trellis_based_rml_decoder {
 
     std::vector<std::vector<linalg::lin_vector>> _gray_codes; // contains all the gray codes of dims 0 to max(p_x_y(C)), where x, y are bounds of make_cbt procedure
 
-    std::vector<std::vector<std::vector<std::pair<std::pair<linalg::lin_vector, linalg::lin_vector>, linalg::lin_vector>>>> _ctors_for_make_cbt; // stores corresponding coset of vect and opposite coset and vect itself; if (g) then it stores ctors in gray order
+    std::vector<std::vector<std::vector<std::pair<std::pair<linalg::lin_vector, linalg::lin_vector>, std::pair<linalg::lin_vector, linalg::lin_vector>>>>> _ctors_for_make_cbt; // stores corresponding coset of vect and opposite coset and vect itself; if (g) then it stores ctors in gray order
 
     std::vector<std::vector<trellis>> _trellises;
     // we do not need to store shifts as we find basis vectors by gaussian method, however it might have some small speed up
     // we can also store all the trellises
-    std::vector<std::vector<std::map<linalg::lin_vector, std::pair<linalg::lin_vector, double>>>> _cbt;
+    std::vector<std::vector<std::unordered_map<linalg::lin_vector, std::pair<linalg::lin_vector, double>>>> _cbt;
+
+    hamming_metric _metric;
+    linalg::lin_vector _result;
+
 
     trellis_based_rml_decoder(linalg::matrix const& mt, bool use_grey_code, bool use_uniform_optimization);
 
@@ -100,15 +104,15 @@ struct trellis_based_rml_decoder {
     
     void prepare_make_cbt_g(size_t x, size_t y);
 
-    void make_cbt_i(size_t x, size_t y, hamming_metric const& metric);
+    void make_cbt_i(size_t x, size_t y);
 
-    void make_cbt_g(size_t x, size_t y, hamming_metric const& metric);
+    void make_cbt_g(size_t x, size_t y);
 
-    void comb_cbt_v(size_t x, size_t y, hamming_metric const& metric);
+    void comb_cbt_v(size_t x, size_t y);
 
-    void comb_cbt_u(size_t x, size_t y, hamming_metric const& metric);
+    void comb_cbt_u(size_t x, size_t y);
 
-    linalg::lin_vector decode(linalg::lin_vector const& decisions, std::vector<double> const& rels);
+    linalg::lin_vector decode();
 
     linalg::lin_vector decode(std::vector<double> const& signals);
     

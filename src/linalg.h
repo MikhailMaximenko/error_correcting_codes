@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <set>
 #include <string>
 #include <vector>
@@ -97,3 +98,11 @@ struct matrix : std::vector<lin_vector> {
 };
 
 } // namespace linalg
+
+template<>
+struct std::hash<linalg::lin_vector> {
+    std::hash<std::vector<bool>> hasher = std::hash<std::vector<bool>>();
+    size_t operator()(const linalg::lin_vector& lv) const {
+        return hasher(static_cast<std::vector<bool>>(lv));
+    }
+};
