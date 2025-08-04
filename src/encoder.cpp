@@ -799,7 +799,7 @@ void trellis_based_rml_decoder::comb_cbt_u(size_t x, size_t y)  {
                     };
 
                     // use touples instead of pairs
-                     std::priority_queue<std::pair<double, std::pair<size_t, size_t>>, std::vector<std::pair<double, std::pair<size_t, size_t>>>, decltype(cmp)> pq (tr._heap_storage.begin(), tr._heap_storage.end(), cmp);
+                    std::priority_queue<std::pair<double, std::pair<size_t, size_t>>, std::vector<std::pair<double, std::pair<size_t, size_t>>>, decltype(cmp)> pq (tr._heap_storage.begin(), tr._heap_storage.end(), cmp);
 
                     size_t cnt = 0;
 
@@ -842,7 +842,6 @@ void trellis_based_rml_decoder::comb_cbt_u(size_t x, size_t y)  {
                             pq.push({std::numeric_limits<double>::infinity(), {b_z, b_y}});  
                         }
                     }
-
                     for (auto & br : tr._group_cache[component][i][j]) { // f4
                         if (!std::isinf(_cbt[x][y-1][br.first].second)) {
                             ++_comparisons;
@@ -866,7 +865,6 @@ linalg::lin_vector trellis_based_rml_decoder::decode() {
     } else {
         comb_cbt_v(0, _gen[0].size());
     }
-    
     auto res = (*_cbt[0][_gen[0].size() - 1].begin()).second.first;
     for (size_t xs = 0; xs < _cbt.size(); ++xs) { // reset _cbt
         for (size_t ys = 0; ys < _cbt[xs].size(); ++ys) {

@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <limits>
 #include <map>
+#include <unordered_map>
 #include <vector>
 
 namespace encoding {
@@ -27,7 +28,7 @@ struct trellis {
 
     std::vector<std::vector<std::vector<std::vector<std::pair<double, linalg::lin_vector>>>>> _branches; // for each compgroup for each group pair store sorted ctors from z to y
     std::vector<std::vector<std::vector<std::pair<double, size_t>>>> _inner_branches; // for each compgroup for each group store sorted ctors from x to z
-    std::vector<std::vector<std::vector<std::map<linalg::lin_vector, std::pair<linalg::lin_vector, double>>>>> _group_cache; // for each comp for each group pair store a map of results
+    std::vector<std::vector<std::vector<std::unordered_map<linalg::lin_vector, std::pair<linalg::lin_vector, double>>>>> _group_cache; // for each comp for each group pair store a map of results
 
     std::vector<std::pair<double, std::pair<size_t, size_t>>> _heap_storage;
     

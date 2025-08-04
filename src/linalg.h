@@ -103,6 +103,6 @@ template<>
 struct std::hash<linalg::lin_vector> {
     std::hash<std::vector<bool>> hasher = std::hash<std::vector<bool>>();
     size_t operator()(const linalg::lin_vector& lv) const {
-        return hasher(static_cast<std::vector<bool>>(lv));
+        return hasher(static_cast<std::vector<bool>const &>(lv));
     }
 };
