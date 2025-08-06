@@ -86,7 +86,7 @@ std::vector<size_t> emulate(size_t n, size_t k, linalg::matrix const& gen_matrix
 
 void make_and_put_samples(std::ofstream &out, linalg::matrix const& gen_matrix, size_t n, size_t k, size_t errors, double step, double max_noise, bool g, bool u) {
     double signal_noise = 0;
-    
+    double wer;
     while (signal_noise <= max_noise) {
         // Eb / N = signal_noise,
         // Es = 1
@@ -97,10 +97,11 @@ void make_and_put_samples(std::ofstream &out, linalg::matrix const& gen_matrix, 
         double twice_noise_var = std::pow(10, -0.1*signal_noise) * n / k;
         // N = 2 * \sigma ^ 2 -> \sigma = sqrt(N / 2)
         auto res = emulate(n, k, gen_matrix, errors, sqrt(twice_noise_var / 2), g, u);
+        wer = static_cast<double>(res[0] - res[1]) / res[0];
         if (u) {
-            out << res[0] << " " << res[1] << " " << static_cast<double>(res[1]) / res[0] << " " << signal_noise << " " << res[2] << " " << res[3] << " " << (res[2] + res[3]) << " " << res[4] << '\n';
+            out << res[0] << " " << res[1] << " " << wer << " " << signal_noise << " " << res[2] << " " << res[3] << " " << (res[2] + res[3]) << " " << res[4] << '\n';
         } else {
-            out << res[0] << " " << res[1] << " " << static_cast<double>(res[1]) / res[0] << " " << signal_noise << " " << res[2] << " " << res[3] << " " << (res[2] + res[3]) << '\n';
+            out << res[0] << " " << res[1] << " " << wer << " " << signal_noise << " " << res[2] << " " << res[3] << " " << (res[2] + res[3]) << '\n';
         }
 
         signal_noise += step;
@@ -108,7 +109,7 @@ void make_and_put_samples(std::ofstream &out, linalg::matrix const& gen_matrix, 
 }
 
 int main(int argc, const char* argv[]) {
-    if (argc < 8) {
+    if (argc < 7) {
         std::cout << "expected args: input_file, output_file, errors, step, max noise, g, u\n";
         return -1;
     }
