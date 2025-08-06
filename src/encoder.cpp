@@ -213,6 +213,7 @@ linalg::lin_vector decoder::decode(linalg::lin_vector const& hard_decisions, std
 
 trellis_based_rml_decoder::trellis_based_rml_decoder(linalg::matrix const& mt, bool use_grey_code, bool use_uniform_optimization) : _gen(mt) , g(use_grey_code) , u(use_uniform_optimization) 
     , _special_matrices(_gen[0].size(), std::vector<linalg::matrix>(_gen[0].size()))
+    , _leading_trailing_cache(_gen[0].size(), std::vector<std::vector<std::pair<size_t, size_t>>>(_gen[0].size()))
     , _partiotions(_gen[0].size(), std::vector<std::pair<size_t, size_t>>(_gen[0].size()))
     , _gray_codes()
     , _ctors_for_make_cbt(_gen[0].size(), std::vector<std::vector<std::pair<std::pair<linalg::lin_vector, linalg::lin_vector>, std::pair<linalg::lin_vector, linalg::lin_vector>>>>(_gen[0].size()))
@@ -257,9 +258,9 @@ void trellis_based_rml_decoder::count_partition(size_t x, size_t y) {
     size_t tr_ctors = mt.get_c_tr_ctors_number(y - x);
 
     size_t y_dim = 0;
-    for (auto const& vect : mt) {
-        size_t leading = vect.leading();
-        size_t trailing = vect.trailing();
+    for (size_t i = 0; i < mt.size(); ++i) {
+        size_t leading = _leading_trailing_cache[x][y - 1][i].first;
+        size_t trailing = _leading_trailing_cache[x][y - 1][i].second;
         if (y - x <= trailing && y - x > leading) { // check if y in active span
             ++y_dim;
         }
@@ -319,6 +320,7 @@ void trellis_based_rml_decoder::count_partitions() {
     for (size_t xs = 0; xs < _special_matrices.size(); ++xs) {
         for (size_t ys = xs; ys < _special_matrices[xs].size(); ++ys) {
             _special_matrices[xs][ys].clear();
+            _leading_trailing_cache[xs][ys].clear();
         }
     }
 }
@@ -363,6 +365,9 @@ void trellis_based_rml_decoder::build_special_matrix(size_t x, size_t y) {
     res.make_tof();
 
     _special_matrices[x][y-1] = res;
+    for (auto const & v : res) {
+        _leading_trailing_cache[x][y-1].push_back({v.leading(), v.trailing()});
+    }
 }
 
 linalg::lin_vector trellis_based_rml_decoder::get_coset_vect(size_t x, size_t y, linalg::lin_vector const& vect) const {
@@ -371,7 +376,7 @@ linalg::lin_vector trellis_based_rml_decoder::get_coset_vect(size_t x, size_t y,
     linalg::lin_vector cur = vect;
 
     for (size_t i = 0; i < ctors.size(); ++i) {
-        if (cur[ctors[i].leading()] && ctors[i].trailing() < (y - x)) {
+        if (cur[_leading_trailing_cache[x][y-1][i].first] && _leading_trailing_cache[x][y-1][i].second < (y - x)) {
             for (size_t j = 0; j < y - x; ++j) {
                 cur[j] = (cur[j] != ctors[i][j]);
             }
@@ -394,9 +399,9 @@ void trellis_based_rml_decoder::build_special_trellis(size_t x, size_t z, size_t
 
     size_t z_dim = 0;
     size_t y_dim = 0;
-    for (auto const& vect : gen) {
-        size_t leading = vect.leading();
-        size_t trailing = vect.trailing();
+    for (size_t i = 0; i < gen.size(); ++i) {
+        size_t leading = _leading_trailing_cache[x][y + x - 1][i].first;
+        size_t trailing = _leading_trailing_cache[x][y + x - 1][i].second;
         if (z <= trailing && z > leading) { // check if z in active span
             ++z_dim;
         }

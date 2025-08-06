@@ -61,6 +61,8 @@ struct trellis_based_rml_decoder {
 
     std::vector<std::vector<linalg::matrix>> _special_matrices; // lets store all the special matrices as we need to compute it ones
 
+    std::vector<std::vector<std::vector<std::pair<size_t, size_t>>>> _leading_trailing_cache;
+
     std::vector<std::vector<std::pair<size_t, size_t>>> _partiotions; // store all partitions
 
     std::vector<std::vector<linalg::lin_vector>> _gray_codes; // contains all the gray codes of dims 0 to max(p_x_y(C)), where x, y are bounds of make_cbt procedure
