@@ -44,10 +44,14 @@ int64_t lin_vector::operator*(lin_vector const& o) const {
     return res;
 }
 
-lin_vector lin_vector::operator*(matrix const& o) const { // expects vector to be "horisontal"
-    matrix tmp;
-    tmp.push_back(*this);
-    return (tmp * o)[0];
+lin_vector lin_vector::operator*(matrix const& o) const {
+    lin_vector res(o[0].size(), false);
+    for (size_t i = 0; i < size(); ++i) {
+        if (at(i)) { 
+            res += o[i];
+        }
+    }
+    return res;
 }
 
 lin_vector& lin_vector::operator-() {
