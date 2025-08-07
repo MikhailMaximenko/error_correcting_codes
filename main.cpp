@@ -1,5 +1,7 @@
 #include "linalg.h"
 #include "encoder.h"
+#include "src/encoder.h"
+#include "src/linalg.h"
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -18,18 +20,17 @@ std::mt19937 gen(device());
 std::bernoulli_distribution bern(0.5);
 
 
-linalg::lin_vector string_to_vec(std::string const& s) {
-    linalg::lin_vector vec;
-    vec.reserve(s.size());
+linalg::bit_vector string_to_vec(std::string const& s) {
+    linalg::bit_vector vec;
     for (char ch : s) {
         vec.push_back(((ch - '0') != 0));
     }
     return vec;
 }
     
-linalg::lin_vector gen_vect(size_t sz) {
-    linalg::lin_vector res;
-    res.reserve(sz);
+linalg::bit_vector gen_vect(size_t sz) {
+    linalg::bit_vector res;
+    // res.reserve(sz);
 
     for (size_t i = 0; i < sz; ++i) {
         res.push_back(bern(gen));
@@ -38,7 +39,7 @@ linalg::lin_vector gen_vect(size_t sz) {
     return res;
 }
 
-std::vector<double> send(linalg::lin_vector const& message, std::normal_distribution<double> & distr) {
+std::vector<double> send(linalg::bit_vector const& message, std::normal_distribution<double> & distr) {
     std::vector<double> res;
     res.reserve(message.size());
     for (size_t i = 0; i < message.size(); ++i) {
@@ -54,7 +55,7 @@ std::vector<double> send(linalg::lin_vector const& message, std::normal_distribu
 }
 
 // returns number of correct decoded messages
-std::vector<size_t> emulate(size_t n, size_t k, linalg::matrix const& gen_matrix, 
+std::vector<size_t> emulate(size_t n, size_t k, linalg::bit_matrix const& gen_matrix, 
             size_t errors, double deviation, bool g, bool u) {
                 
     
@@ -84,7 +85,7 @@ std::vector<size_t> emulate(size_t n, size_t k, linalg::matrix const& gen_matrix
     return {iterations, cnt, adds, cmps};
 }
 
-void make_and_put_samples(std::ofstream &out, linalg::matrix const& gen_matrix, size_t n, size_t k, size_t errors, double step, double max_noise, bool g, bool u) {
+void make_and_put_samples(std::ofstream &out, linalg::bit_matrix const& gen_matrix, size_t n, size_t k, size_t errors, double step, double max_noise, bool g, bool u) {
     double signal_noise = 0;
     double wer;
     while (signal_noise <= max_noise) {
@@ -151,11 +152,11 @@ int main(int argc, const char* argv[]) {
     } else {
         out << "fields: total iterations, correct answers, error rate, noise (dB), max adds, max comparisons, max total\n";
     }
-    linalg::matrix gen;
+    linalg::bit_matrix gen;
     in >> n >> k;
 
     for (size_t i = 0; i < k; ++i) {
-        linalg::lin_vector v;
+        linalg::bit_vector v;
         std::string s;
         in >> s;
         for (char ch : s) {

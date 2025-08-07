@@ -9,9 +9,9 @@
 
 namespace encoding {
 struct trellis_node {
-    linalg::lin_vector _incoming_coset;
+    linalg::bit_vector _incoming_coset;
 
-    std::map<linalg::lin_vector, size_t> _next;
+    std::unordered_map<linalg::bit_vector, size_t> _next;
 
     trellis_node() : _next() {}
 };
@@ -26,9 +26,9 @@ struct trellis {
     std::vector<std::vector<std::vector<size_t>>> _parallel_components; // contains vectors of ids of nodes in the same parallel component for each section
     std::vector<std::set<size_t>> _parallel_component_groups; // contains vectors of ids of parallel components in the same groups
 
-    std::vector<std::vector<std::vector<std::vector<std::pair<double, linalg::lin_vector>>>>> _branches; // for each compgroup for each group pair store sorted ctors from z to y
+    std::vector<std::vector<std::vector<std::vector<std::pair<double, linalg::bit_vector>>>>> _branches; // for each compgroup for each group pair store sorted ctors from z to y
     std::vector<std::vector<std::vector<std::pair<double, size_t>>>> _inner_branches; // for each compgroup for each group store sorted ctors from x to z
-    std::vector<std::vector<std::vector<std::unordered_map<linalg::lin_vector, std::pair<linalg::lin_vector, double>>>>> _group_cache; // for each comp for each group pair store a map of results
+    std::vector<std::vector<std::vector<std::unordered_map<linalg::bit_vector, std::pair<linalg::bit_vector, double>>>>> _group_cache; // for each comp for each group pair store a map of results
 
     std::vector<std::pair<double, std::pair<size_t, size_t>>> _heap_storage;
     

@@ -11,6 +11,88 @@
 namespace linalg {
 
 struct matrix;
+struct bit_matrix;
+
+
+struct bit_vector {
+    static constexpr int UNDERLIING_TYPE_SIZE = 8 * sizeof(uint64_t);
+    std::vector<uint64_t> _storage;
+    size_t _sz;
+
+    bit_vector();
+    bit_vector(size_t, bool v = false);
+    bit_vector(size_t, size_t);
+
+    void push_back(bool);
+    size_t size() const noexcept;
+    void resize(size_t);
+    bool empty() const noexcept;
+    bool operator[](size_t) const;
+    void set(size_t, bool);
+
+    bit_vector& operator+=(bit_vector const&);
+    bit_vector operator+(bit_vector const&) const;
+
+    bit_vector& operator-();
+
+    bit_vector & multiply(bit_vector const&);
+
+    void permutate(std::vector<size_t> const&);
+    bit_vector operator*(bit_matrix const&) const;
+
+
+    bit_vector& operator++() noexcept;
+
+    bool any(bit_vector const& mask) const;
+    bool all(bit_vector const& mask) const;
+
+    size_t leading() const noexcept;
+    size_t trailing() const noexcept;
+
+    bool all_zeros(size_t, size_t) const;
+
+    bit_vector puncture(size_t, size_t) const;
+    bit_vector concat(bit_vector const &) const;
+
+    std::string to_string() const;
+
+    bool operator==(bit_vector const& o) const noexcept;
+    bool operator!=(bit_vector const& o) const noexcept;
+    // bool operator<(bit_vector const& o) const noexcept;
+
+    uint64_t to_bit_mask() const noexcept;
+
+};
+
+struct bit_matrix : std::vector<bit_vector> {
+    using std::vector<bit_vector>::vector;
+
+    std::vector<size_t> get_g_s(ptrdiff_t) const;
+
+    std::vector<size_t> get_g_f(ptrdiff_t) const;
+
+    std::vector<size_t> get_g_p(ptrdiff_t) const;
+
+    std::vector<size_t> get_g_f_s(ptrdiff_t, ptrdiff_t) const;
+
+    std::vector<size_t> get_g_s_p(ptrdiff_t, ptrdiff_t) const;
+
+    bit_matrix puncture(size_t, size_t) const;
+
+    bit_matrix resolve_basis_gaussian();
+
+    bit_matrix retrieve(std::vector<size_t> const&) const;
+
+    bit_vector get_and_multiply(bit_vector const&) const;
+
+    size_t get_c_tr_ctors_number(size_t) const;
+
+    bool is_tof() const noexcept;
+
+    void make_tof();
+
+    std::string to_string() const;
+};
 
 struct lin_vector : std::vector<bool> {
     using std::vector<bool>::vector;
@@ -104,5 +186,21 @@ struct std::hash<linalg::lin_vector> {
     std::hash<std::vector<bool>> hasher = std::hash<std::vector<bool>>();
     size_t operator()(const linalg::lin_vector& lv) const {
         return hasher(static_cast<std::vector<bool>const &>(lv));
+    }
+};
+
+template <class T>
+inline void hash_combine(std::size_t& seed, const T& v) {
+    seed ^= std::hash<T>{}(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
+
+template <>
+struct std::hash<linalg::bit_vector> {
+    std::size_t operator()(const linalg::bit_vector& v) const {
+        std::size_t seed = v.size();
+        for (uint64_t i : v._storage) {
+            hash_combine(seed, i);
+        }
+        return seed;
     }
 };
