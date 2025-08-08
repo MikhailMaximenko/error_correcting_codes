@@ -1,8 +1,10 @@
 #include "linalg.h"
+#include <bitset>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <iostream>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -24,7 +26,7 @@ void bit_vector::push_back(bool b) {
 }
 bit_vector::bit_vector(size_t sz, bool v) : _storage(sz / UNDERLIING_TYPE_SIZE + (sz % UNDERLIING_TYPE_SIZE ? 1 : 0), v? -1 : 0) , _sz(sz) {
     if (v && (sz % UNDERLIING_TYPE_SIZE != 0)) {
-        _storage.back() &= ((1 << (sz % UNDERLIING_TYPE_SIZE)) - 1);
+        _storage.back() &= ((1ull << (sz % UNDERLIING_TYPE_SIZE)) - 1);
     }
 }
 void bit_vector::resize(size_t sz) {
@@ -40,13 +42,13 @@ bool bit_vector::empty() const noexcept {
 }
 
 bool bit_vector::operator[](size_t ind) const {
-    return (_storage[ind / UNDERLIING_TYPE_SIZE] >> (ind % UNDERLIING_TYPE_SIZE)) & 1;
+    return (_storage[ind / UNDERLIING_TYPE_SIZE] >> (ind % UNDERLIING_TYPE_SIZE)) & 1ull;
 }
 void bit_vector::set(size_t ind, bool v) {
     if (v) {
-        _storage[ind / UNDERLIING_TYPE_SIZE] = _storage[ind / UNDERLIING_TYPE_SIZE] | (1 << (ind % UNDERLIING_TYPE_SIZE));
+        _storage[ind / UNDERLIING_TYPE_SIZE] = _storage[ind / UNDERLIING_TYPE_SIZE] | (1ull << (ind % UNDERLIING_TYPE_SIZE));
     } else {
-        _storage[ind / UNDERLIING_TYPE_SIZE] = _storage[ind / UNDERLIING_TYPE_SIZE] & ~(1 << (ind % UNDERLIING_TYPE_SIZE));
+        _storage[ind / UNDERLIING_TYPE_SIZE] = _storage[ind / UNDERLIING_TYPE_SIZE] & ~(1ull << (ind % UNDERLIING_TYPE_SIZE));
     }
 }
 
@@ -66,14 +68,15 @@ bit_vector bit_vector::operator+(bit_vector const& o) const {
 }
 
 
-bit_vector& bit_vector::operator-() {
-    for (size_t i = 0; i < _sz / UNDERLIING_TYPE_SIZE; ++i) {
-        _storage[i] = ~_storage[i];
+bit_vector bit_vector::operator-() const {
+    bit_vector res(size());
+    for (size_t i = 0; i < _storage.size(); ++i) {
+        res._storage[i] = ~_storage[i];
     }
     if (_sz % UNDERLIING_TYPE_SIZE){
-        _storage[_sz / UNDERLIING_TYPE_SIZE] = (~_storage[_sz / UNDERLIING_TYPE_SIZE]) & ((1 << (_sz % UNDERLIING_TYPE_SIZE)) - 1);
+        res._storage.back() = (~_storage.back()) & ((1ull << (_sz % UNDERLIING_TYPE_SIZE)) - 1);
     }
-    return *this;
+    return res;
 }
 
 bit_vector & bit_vector::multiply(bit_vector const& o) {
@@ -87,6 +90,9 @@ bit_vector & bit_vector::multiply(bit_vector const& o) {
 }
 
 bit_vector bit_vector::operator*(bit_matrix const& mt) const {
+    if (_sz != mt.size()) {
+        throw std::domain_error("operator*: unmatched sizes");
+    }
     bit_vector res(mt[0].size());
     for (size_t i = 0; i < _sz; ++i) {
         if ((*this)[i]) {
@@ -128,6 +134,7 @@ bool bit_vector::all(bit_vector const& mask) const {
         throw std::domain_error("uncompatible sizes");
     }
     for (size_t i = 0; i < mask._storage.size(); ++i) {
+        // std::cout << std::bitset<64>{_storage[i]} << " " << std::bitset<64>{~mask._storage[i]} << "\n";
         if ((_storage[i] & (~mask._storage[i])) == 0) {
             return true;
         }
@@ -137,7 +144,7 @@ bool bit_vector::all(bit_vector const& mask) const {
 
 size_t bit_vector::leading() const noexcept { // used in init, but can be optimized
     for (size_t i = 0; i < _sz; ++i) {
-        if ((_storage[i / UNDERLIING_TYPE_SIZE] >> (i % UNDERLIING_TYPE_SIZE)) & 1) {
+        if ((*this)[i]) {
             return i;
         }
     }
@@ -145,7 +152,7 @@ size_t bit_vector::leading() const noexcept { // used in init, but can be optimi
 }
 size_t bit_vector::trailing() const noexcept { // can be also optimized
     for (size_t i = _sz - 1; i > 0; --i) {
-        if ((_storage[i / UNDERLIING_TYPE_SIZE] >> (i % UNDERLIING_TYPE_SIZE)) & 1) {
+        if ((*this)[i]) {
             return i;
         }
     }
@@ -155,7 +162,7 @@ size_t bit_vector::trailing() const noexcept { // can be also optimized
 bool bit_vector::all_zeros(size_t from, size_t to) const { // can be also optimized
     bool flag = false;
     for (size_t i = from; i < to; ++i) {
-        flag |= (_storage[i / UNDERLIING_TYPE_SIZE] >> (i % UNDERLIING_TYPE_SIZE)) & 1; 
+        flag |= (*this)[i]; 
     }
     return !flag;
 }
@@ -163,7 +170,7 @@ bool bit_vector::all_zeros(size_t from, size_t to) const { // can be also optimi
 bit_vector bit_vector::puncture(size_t from, size_t to) const { // can be also optimized
     bit_vector res(to - from);
     for (size_t i = from; i < to; ++i) {
-        res._storage[i - from] = (_storage[i / UNDERLIING_TYPE_SIZE] >> (i % UNDERLIING_TYPE_SIZE)) & 1; 
+        res.set(i - from, (*this)[i]); 
     }
     return res;
 }
@@ -205,17 +212,36 @@ bool bit_vector::operator==(bit_vector const& o) const noexcept {
 bool bit_vector::operator!=(bit_vector const& o) const noexcept {
     return (_sz != o._sz) || (_storage != o._storage);
 }
+bool bit_vector::operator<(bit_vector const& o) const noexcept {
+    if (size() < o.size()) {
+        return true;
+    }
+    for (size_t i = 0; i < _storage.size(); ++i) {
+        if (_storage[i] < o._storage[i]) {
+            return true;
+        }
+    }
+    return false;
+}
 
 uint64_t bit_vector::to_bit_mask() const noexcept {
+    if (_storage.empty()) {
+        return 0;
+    }
     return _storage[0];
 }
 
 std::vector<size_t> bit_matrix::get_g_s(ptrdiff_t h) const {
+    if (empty()) {
+        return {};
+    }
     std::vector<size_t> res;
     bit_vector mask1(at(0).size(), false);
-    mask1 += h >= 1 ? bit_vector(h - 1, true) : bit_vector(0, false);
+    mask1 += bit_vector(h, true);
     bit_vector mask2(at(0).size(), true);
     mask2 += bit_vector(h, true);
+
+    // std::cout << "time: " << h << " printing masks: " << mask1.to_string() << " " << mask2.to_string() << "\n";
     for (size_t i = 0; i < size(); ++i) {
         bit_vector const & v = at(i);
         if (v.any(mask2) && v.any(mask1)) {
@@ -226,21 +252,11 @@ std::vector<size_t> bit_matrix::get_g_s(ptrdiff_t h) const {
 }
 
 std::vector<size_t> bit_matrix::get_g_f(ptrdiff_t h) const {
+    if (empty()) {
+        return {};
+    }
     std::vector<size_t> res;
     bit_vector mask1(at(0).size(), true);
-    mask1 += bit_vector(h + 1, true);
-    for (size_t i = 0; i < size(); ++i) {
-        bit_vector const & v = at(i);
-        if (v.all(mask1)) {
-            res.push_back(i);
-        }
-    }
-    return res;
-}
-
-std::vector<size_t> bit_matrix::get_g_p(ptrdiff_t h) const {
-    std::vector<size_t> res;
-    bit_vector mask1(at(0).size(), false);
     mask1 += bit_vector(h, true);
     for (size_t i = 0; i < size(); ++i) {
         bit_vector const & v = at(i);
@@ -251,8 +267,26 @@ std::vector<size_t> bit_matrix::get_g_p(ptrdiff_t h) const {
     return res;
 }
 
+std::vector<size_t> bit_matrix::get_g_p(ptrdiff_t h) const {
+    if (empty()) {
+        return {};
+    }
+    // std::cout << "gsp called: \n" << to_string() << "\n";
+    std::vector<size_t> res;
+    bit_vector mask1(at(0).size(), false);
+    mask1 += bit_vector(h, true);
+    // std::cout << mask1.to_string() << "\n";
+    for (size_t i = 0; i < size(); ++i) {
+        bit_vector const & v = at(i);
+        if (v.all(mask1)) {
+            res.push_back(i);
+        }
+    }
+    return res;
+}
+
 std::vector<size_t> bit_matrix::get_g_f_s(ptrdiff_t f, ptrdiff_t s) const {
-    if (s <= f) {
+    if (empty() || s <= f) {
         return {};
     }
     auto indeces = get_g_f(f);
@@ -265,7 +299,7 @@ std::vector<size_t> bit_matrix::get_g_f_s(ptrdiff_t f, ptrdiff_t s) const {
 }
 
 std::vector<size_t> bit_matrix::get_g_s_p(ptrdiff_t f, ptrdiff_t s) const {
-    if (s <= f) {
+    if (empty() || s <= f) {
         return {};
     }
     auto indeces = get_g_s(f);
@@ -324,7 +358,7 @@ bit_vector bit_matrix::get_and_multiply(bit_vector const& get) const {
 size_t bit_matrix::get_c_tr_ctors_number(size_t h) const {
     size_t cnt = 0;
     bit_vector mask1(at(0).size(), false);
-    mask1 += bit_vector(h - 1, true);
+    mask1 += bit_vector(h, true);
     for (size_t i = 0; i < size(); ++i) {
         bit_vector const & v = at(i);
         if (v.all(mask1)) {

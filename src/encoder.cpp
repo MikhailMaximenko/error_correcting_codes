@@ -2,8 +2,10 @@
 #include "linalg.h"
 #include "trellis.h"
 #include <algorithm>
+#include <bitset>
 #include <cmath>
 #include <cstddef>
+#include <iostream>
 #include <limits>
 #include <queue>
 #include <stdexcept>
@@ -100,11 +102,15 @@ trellis_based_rml_decoder::trellis_based_rml_decoder(linalg::bit_matrix const& m
     , _metric(linalg::bit_vector(_gen[0].size()), std::vector<double>(_gen[0].size()))
     , _result(_gen.size())
 {
+    // std::cout << _gen.retrieve(_gen.get_g_s(8)).to_string() << "q\n";
+    // std::cout << _gen.retrieve(_gen.get_g_p(32)).to_string() << "\n";
     // if (!_gen.is_tof()) {
     //     throw std::logic_error("matrix should be in tof");
     // }
     count_partitions();
+    std::cout << "h1\n";
     init(0, _gen[0].size());
+    std::cout << "h2\n";
 }
 
 void trellis_based_rml_decoder::init(size_t x, size_t y) {
@@ -114,27 +120,31 @@ void trellis_based_rml_decoder::init(size_t x, size_t y) {
     if (x != z) {
         init(x, z);
         init(z, y);
+        // std::cout << "chek\n";
         build_special_trellis(x, z - x, y - x);
+        // std::cout << "shmek\n";
         if (u) {
             make_uniform_decomposition(x, z, y);
         } 
     } else {
+        // std::cout << "kek\n";
         if (g) {
             prepare_make_cbt_g(x, y);
         } else {
             prepare_make_cbt_i(x, y);
         }
+        // std::cout << "gek\n";
     }
 }
 
 
 void trellis_based_rml_decoder::count_partition(size_t x, size_t y) {
     size_t metric = 0;
+    // // std::cout << "building mt\n";
     build_special_matrix(x, y);
-
+    // // std::cout << "mt built:\n" << x << " " << y << "\n" << _special_matrices[x][y-1].to_string() << "\n";
     auto const & mt = _special_matrices[x][y-1];
     size_t tr_ctors = mt.get_c_tr_ctors_number(y - x);
-
     size_t y_dim = 0;
     for (size_t i = 0; i < mt.size(); ++i) {
         size_t leading = _leading_trailing_cache[x][y - 1][i].first;
@@ -163,7 +173,9 @@ void trellis_based_rml_decoder::count_partition(size_t x, size_t y) {
         return;
     }
     for (size_t z = x + 1; z < y; ++z)  {
+        // // std::cout << "here\n";
         size_t branches = mt.get_g_s_p(z - x, y - x).size();
+        // // std::cout << "here1\n";
         size_t add; 
         if (u) {
             auto const& mt1 = _special_matrices[x][z-1];
@@ -223,10 +235,11 @@ void trellis_based_rml_decoder::build_special_matrix(size_t x, size_t y) {
         }
     }
     
+    // if (x == 0 && y == 32) std::cout << "1: " << std::bitset<64>{mt.back()._storage.back()} << "\n";
     mt = mt.puncture(x, y);
-    
+    // if (x == 0 && y == 32) std::cout << "2: " << std::bitset<64>{mt.back()._storage.back()} << "\n";
     auto res = mt.resolve_basis_gaussian();
-
+    // if (x == 0 && y == 32) std::cout << "3: " << std::bitset<64>{mt.back()._storage.back()} << "\n";
     // we assume here, that matrix is "OK", and rows in generating matrix form a k-basis, 
     // so first c_tr_ctors are linear independant
 
@@ -252,6 +265,7 @@ linalg::bit_vector trellis_based_rml_decoder::get_coset_vect(size_t x, size_t y,
     linalg::bit_matrix const& ctors = _special_matrices[x][y-1];
 
     linalg::bit_vector cur = vect;
+    // std::cout << "begin\n";
     while (cur.size() < ctors[0].size()) {
         cur.push_back(false);
     }
@@ -264,15 +278,15 @@ linalg::bit_vector trellis_based_rml_decoder::get_coset_vect(size_t x, size_t y,
             // }
         }
     }
+    // std::cout << "end\n";
     return cur.puncture(0, y - x);
 }
 
 
 // gen matrix should be in TOF
 void trellis_based_rml_decoder::build_special_trellis(size_t x, size_t z, size_t y) {
-
+    // std::cout << x << " " << x + z << " " << x + y << " bg\n";
     linalg::bit_matrix const& gen = _special_matrices[x][y + x - 1];
-    
     trellis result;
     result._sections.resize(2);
     // get states for z, we assume that z corresponds to multiple start states
@@ -298,7 +312,12 @@ void trellis_based_rml_decoder::build_special_trellis(size_t x, size_t z, size_t
     for (size_t i = 0; i < (1 << y_dim); ++i) {
         result._sections[1].emplace_back();
     }
-        
+
+    if (x == 0 && y == 32) {
+        // std::cout << gen.to_string() << "\n";
+
+    }
+
     auto g_s_ind = gen.get_g_s(z);
     auto g_s = gen.retrieve(g_s_ind);
 
@@ -321,29 +340,43 @@ void trellis_based_rml_decoder::build_special_trellis(size_t x, size_t z, size_t
 
     size_t branches = gen.retrieve(gen.get_g_s(z)).get_g_s(y).size();
 
+    // std::cout << x << " " << x + z << " " << x + y << " aloha\n";
     for (size_t i = 0; i < (1 << z_dim); ++i) {
+
         linalg::bit_vector a_star, a_a_star;
         a_star.resize(y_dim - branches);
-        for (size_t i = g_s.size() - branches; i < g_s.size(); ++i) {
-            a_a_star.push_back(a_star[i]);
-        }
-        // a_a_star.insert(a_a_star.begin(), a.begin() + g_s.size() - branches, a.end());
         for (size_t j = branches; j < y_dim; ++j) {
             a_a_star.push_back(false);
         }
 
+        // std::cout << "sorry\n";
+        for (size_t i = g_s.size() - branches; i < g_s.size(); ++i) {
+            a_a_star.push_back(a[i]);
+        }
+        // std::cout << "baby\n";
+        // a_a_star.insert(a_a_star.begin(), a.begin() + g_s.size() - branches, a.end());
+        // std::cout << a.to_string() << " qq\n" << g_s_p.to_string() << "\n";
+        // for (auto const & v : gen) {
+        //     std::cout << std::bitset<64>{v._storage.back()} << " " << v._storage.back() << "\n";
+        // }
+        // std::cout << "??\n";
         linalg::bit_vector p_u = a.empty() ? linalg::bit_vector(y - z) : (a * g_s_p).puncture(z, y);
-
-        for (size_t j = 0; j < (1 << (y_dim - branches)); ++j) {                
+        // std::cout << "!!\n";
+        // std::cout << "oii\n";
+        for (size_t j = 0; j < (1 << (y_dim - branches)); ++j) {  
             linalg::bit_vector coset = get_coset_vect(x + z, x + y,a_star.empty() || g_f_s_punctured.empty() ? p_u :  p_u + a_star * g_f_s_punctured);
             result._sections[0][a.to_bit_mask()]._next[coset] = a_a_star.to_bit_mask();
             result._sections[1][a_a_star.to_bit_mask()]._next[coset] = a.to_bit_mask();
-
             ++a_star;
             ++a_a_star;
         }
+        // std::cout << "ggoii\n";
         ++a;
     }
+
+    // std::cout << "aiii\n";
+    
+    
 
     // find parallel components
     size_t parallel_component_mask = (1 << branches) - 1;
@@ -354,19 +387,21 @@ void trellis_based_rml_decoder::build_special_trellis(size_t x, size_t z, size_t
     }
 
 
-    for (size_t i = 0; i < (1 << z_dim); ++i) {
-        result._parallel_components[i & parallel_component_mask][0].push_back(i);
+    for (size_t i = 0; i < (1 << y_dim); ++i) {
+        result._parallel_components[i & parallel_component_mask][1].push_back(i);
     }
 
 
-    for (size_t i = 0; i < (1 << y_dim); ++i) {
-        result._parallel_components[(i >> (y_dim - branches)) & parallel_component_mask][1].push_back(i);
+    for (size_t i = 0; i < (1 << z_dim); ++i) {
+        result._parallel_components[(i >> (z_dim - branches)) & parallel_component_mask][0].push_back(i);
     }
 
     // init incoming cosets
-    for (size_t state_mask_z = 0; state_mask_z < (1 << z_dim); ++state_mask_z) {
-        linalg::bit_vector a_star(state_mask_z, z_dim);
+    // std::cout << "?\n";
 
+    for (size_t state_mask_z = 0; state_mask_z < (1 << z_dim); ++state_mask_z) {
+
+        linalg::bit_vector a_star(state_mask_z, z_dim);
         linalg::bit_vector b = get_coset_vect(x, x + z, a_star.empty() ? linalg::bit_vector(z) : (a_star * g_s_p).puncture(0, z));
 
         result._sections[0][state_mask_z]._incoming_coset = b;
@@ -379,6 +414,29 @@ void trellis_based_rml_decoder::build_special_trellis(size_t x, size_t z, size_t
         }
 
     }
+
+    // std::cout << "!\n";
+
+
+
+    // if (x == 0 && y == 28) {
+    //     std::cout << gen.to_string() << "\n";
+    //     std::cout << gen.retrieve(gen.get_g_s(y)).to_string() << "\n";
+    //     std::cout << y_dim << " " << branches << "\n";
+    //     std::cout << "printing special trellis: \n";
+    //     for (size_t zz = 0; zz < result._sections[0].size(); ++zz) {
+    //         std::cout << zz << " " << result._sections[0][zz]._incoming_coset.to_string() << " transmissions:\n";
+    //         for (auto const& br : result._sections[0][zz]._next) {
+    //             if (result._sections[1][br.second]._incoming_coset != get_coset_vect(x, x + y, result._sections[0][zz]._incoming_coset.concat(br.first))) {
+    //                 throw std::logic_error("no way");
+    //             }
+    //             std::cout << "\t" << br.first.to_string() << " " << br.second << "\n";
+    //         }
+    //     }
+    //     std::cout << "\n";
+    // }
+
+    // std::cout << "nd\n";
 
     _trellises[x][y+x-1] = result;
 }
@@ -501,7 +559,7 @@ void trellis_based_rml_decoder::prepare_make_cbt_g(size_t x, size_t y) {
         auto res = mt.resolve_basis_gaussian();
         auto coset = get_coset_vect(x, y, v);
         if (res.size() == mt.size() - 1) {
-            auto opposite = get_coset_vect(x, y, -linalg::bit_vector(v));
+            auto opposite = get_coset_vect(x, y, -v);
             if (opposite == coset) {
                 opposite = linalg::bit_vector();
             } else {
@@ -510,7 +568,7 @@ void trellis_based_rml_decoder::prepare_make_cbt_g(size_t x, size_t y) {
             if (!opposite.empty()) {
                 _cbt[x][y-1][opposite] = {linalg::bit_vector(y - x, false), std::numeric_limits<double>::infinity()};
             }
-            _ctors_for_make_cbt[x][y-1].push_back({{coset, opposite}, {v, -linalg::bit_vector(v)}});
+            _ctors_for_make_cbt[x][y-1].push_back({{coset, opposite}, {v, -v}});
         }
         mt.pop_back();
     }
@@ -519,6 +577,7 @@ void trellis_based_rml_decoder::prepare_make_cbt_g(size_t x, size_t y) {
 
 
 void trellis_based_rml_decoder::make_cbt_i(size_t x, size_t y) {
+    // // std::cout << "here\n";
     for (auto const& p : _ctors_for_make_cbt[x][y-1]) {
         double score = _metric.count(p.second.first, x, y);
         _additions += (y - x - 1);
@@ -529,6 +588,7 @@ void trellis_based_rml_decoder::make_cbt_i(size_t x, size_t y) {
             _cbt[x][y - 1][p.first.first] = std::make_pair(p.second.first, score);
         }
     }
+    // // std::cout << "gone\n";
 }
 
 void trellis_based_rml_decoder::make_cbt_g(size_t x, size_t y) {
@@ -658,6 +718,55 @@ void trellis_based_rml_decoder::comb_cbt_u(size_t x, size_t y)  {
             });
         }
     }
+    // if (x == 16 && y == 32) {
+    //     for (size_t zz = 0; zz < tr._sections[0].size(); ++zz) {
+    //         std::cout << zz << " transmissions:\n";
+    //         for (auto const& br : tr._sections[0][zz]._next) {
+    //             std::cout << "\t" << br.first.to_string() << " " << br.second << "\n";
+    //         }
+    //     }
+    //     std::cout << "\n";
+
+    //     for (auto const& pc : tr._parallel_components) {
+    //         std::cout << "left parallel component: \n";
+    //         for (auto c : pc[0]) {
+    //             std::cout << c << " ";
+    //         }
+    //         std::cout << "\n";
+    //         std::cout << "right parallel component: \n";
+    //         for (auto c : pc[1]) {
+    //             std::cout << c << " ";
+    //         }
+    //         std::cout << "\n";
+    //     }
+
+    //     for (auto const& pc : tr._parallel_component_groups) {
+    //         std::cout << "parallel component group: \n";
+    //         for (auto c : pc) {
+    //             std::cout << c << " ";
+    //         }
+    //         std::cout << "\n";
+    //     }
+
+    //     for (auto const& pc : tr._groups) {
+    //         std::cout << "parallel component groups \n";
+    //         for (auto const &g : pc[0]) {
+    //             std::cout << "left group: \n";
+    //             for (auto v : g) {
+    //                 std::cout << v << " ";
+    //             }
+    //             std::cout << "\n";
+    //         }
+    //         for (auto const &g : pc[1]) {
+    //             std::cout << "right group: \n";
+    //             for (auto v : g) {
+    //                 std::cout << v << " ";
+    //             }
+    //             std::cout << "\n";
+    //         }
+    //         std::cout << "\n";
+    //     }
+    // }
 
     for (size_t comp_group = 0; comp_group < tr._parallel_component_groups.size(); ++comp_group) {
         for (size_t component : tr._parallel_component_groups[comp_group]) {
@@ -693,6 +802,7 @@ void trellis_based_rml_decoder::comb_cbt_u(size_t x, size_t y)  {
                     for (size_t b_z = 0; b_z < nu; ++b_z) {
                         pq.push({std::numeric_limits<double>::infinity(), {b_z, 0}});
                     }
+                    
 
                     while (cnt < nu) { // f3
                         auto const& cur = pq.top();
@@ -700,8 +810,15 @@ void trellis_based_rml_decoder::comb_cbt_u(size_t x, size_t y)  {
                         size_t b_z = cur.second.first;
                         size_t b_y = cur.second.second;
                         size_t left_node = tr._inner_branches[component][i][b_z].second;
+                        // std::cout << "trans? : " << comp_group << " " << tr._branches[comp_group].size() << " " << tr._branches[comp_group][i].size() << " " << tr._branches[comp_group][i][j].size() << " " << i << " " << j << " " << b_y << " " << nu << "\n";
                         linalg::bit_vector const& transition = tr._branches[comp_group][i][j][b_y].second;
+                        // std::cout << x << " " << z << " " << y << " zaza\n";
+                        for (auto const & br : tr._sections[0][*tr._groups[comp_group][0][i].begin()]._next) {
+                            // std::cout << br.first.to_string() << " " << br.second << "\n";
+                        }
+                        // std::cout << "amogus: " << transition.to_string() << "\n";
                         linalg::bit_vector const& cur_coset = tr._sections[1][tr._sections[0][left_node]._next[transition]]._incoming_coset;
+                        // std::cout << "trash\n";
                         if (std::isinf(tr._group_cache[component][i][j][cur_coset].second)) {
                             if (std::isinf(metric)) {
                                 ++_additions;
@@ -714,6 +831,7 @@ void trellis_based_rml_decoder::comb_cbt_u(size_t x, size_t y)  {
                             ++cnt;
                         }
                         pq.pop();
+                        // std::cout << "zizi\n";
                         linalg::bit_vector const* trans;
                         linalg::bit_vector const* cst;
                         do { // skip b_ys if the best metric was already found
@@ -727,6 +845,7 @@ void trellis_based_rml_decoder::comb_cbt_u(size_t x, size_t y)  {
                             pq.push({std::numeric_limits<double>::infinity(), {b_z, b_y}});  
                         }
                     }
+                    // std::cout << "boba\n";
                     for (auto & br : tr._group_cache[component][i][j]) { // f4
                         if (!std::isinf(_cbt[x][y-1][br.first].second)) {
                             ++_comparisons;
@@ -736,6 +855,7 @@ void trellis_based_rml_decoder::comb_cbt_u(size_t x, size_t y)  {
                         }
                         br.second.second = std::numeric_limits<double>::infinity();
                     }
+                    // std::cout << "biba\n";
                 }
             }
         }
@@ -754,6 +874,7 @@ linalg::bit_vector trellis_based_rml_decoder::decode() {
     for (size_t xs = 0; xs < _cbt.size(); ++xs) { // reset _cbt
         for (size_t ys = 0; ys < _cbt[xs].size(); ++ys) {
             for (auto& br : _cbt[xs][ys]) {
+                // std::cout << xs << " " << ys << " " << br.first.to_string() << " " << br.second.first.to_string() << " " << br.second.second << std::endl;
                 _cbt[xs][ys][br.first].second = std::numeric_limits<double>::infinity();
             }
         }

@@ -11,7 +11,7 @@ namespace encoding {
 struct trellis_node {
     linalg::bit_vector _incoming_coset;
 
-    std::unordered_map<linalg::bit_vector, size_t> _next;
+    std::map<linalg::bit_vector, size_t> _next;
 
     trellis_node() : _next() {}
 };

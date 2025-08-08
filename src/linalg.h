@@ -33,7 +33,7 @@ struct bit_vector {
     bit_vector& operator+=(bit_vector const&);
     bit_vector operator+(bit_vector const&) const;
 
-    bit_vector& operator-();
+    bit_vector operator-() const;
 
     bit_vector & multiply(bit_vector const&);
 
@@ -58,7 +58,7 @@ struct bit_vector {
 
     bool operator==(bit_vector const& o) const noexcept;
     bool operator!=(bit_vector const& o) const noexcept;
-    // bool operator<(bit_vector const& o) const noexcept;
+    bool operator<(bit_vector const& o) const noexcept;
 
     uint64_t to_bit_mask() const noexcept;
 
