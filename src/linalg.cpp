@@ -1,4 +1,5 @@
 #include "linalg.h"
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -10,6 +11,18 @@
 #include <vector>
 
 namespace linalg {
+
+#ifdef __GNUC__
+#define COUNT_LEADING(v) __builtin_ctzll(v);
+#else
+#define COUNT_LEADING(v) _tzcnt_64(v);
+#endif
+
+#ifdef __GNUC__
+#define COUNT_TRAILING(v) __builtin_clzll(v);
+#else
+#define COUNT_TRAILING(v) _lzcnt_64(v);
+#endif
 
 bit_vector::bit_vector(size_t v, size_t sz) : _storage(1, v) , _sz(sz) {}
 bit_vector::bit_vector() : _storage() , _sz() {}
@@ -140,9 +153,11 @@ bool bit_vector::all(bit_vector const& mask) const {
 }
 
 size_t bit_vector::leading() const noexcept {
-    for (size_t i = 0; i < _sz; ++i) {
-        if ((*this)[i]) {
-            return i;
+    size_t res = 0;
+    for (size_t i = 0; i < _storage.size(); ++i) {
+        res += COUNT_LEADING(_storage[i]);
+        if (res != UNDERLIING_TYPE_SIZE) {
+            return std::min(res, _sz);
         }
     }
     return _sz;
