@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
-#include <iostream>
 #include <limits>
 #include <queue>
 #include <stdexcept>
@@ -102,9 +101,7 @@ trellis_based_rml_decoder::trellis_based_rml_decoder(linalg::bit_matrix const& m
     , _result(_gen.size())
 {
     count_partitions();
-    std::cout << "h1" << std::endl;
     init(0, _gen[0].size());
-    std::cout << "h2" << std::endl;
 }
 
 void trellis_based_rml_decoder::init(size_t x, size_t y) {
