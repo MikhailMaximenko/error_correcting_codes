@@ -2,7 +2,6 @@
 #include "linalg.h"
 #include "trellis.h"
 #include <algorithm>
-#include <bitset>
 #include <cmath>
 #include <cstddef>
 #include <iostream>
@@ -103,7 +102,9 @@ trellis_based_rml_decoder::trellis_based_rml_decoder(linalg::bit_matrix const& m
     , _result(_gen.size())
 {
     count_partitions();
+    std::cout << "h1" << std::endl;
     init(0, _gen[0].size());
+    std::cout << "h2" << std::endl;
 }
 
 void trellis_based_rml_decoder::init(size_t x, size_t y) {
@@ -163,7 +164,7 @@ void trellis_based_rml_decoder::count_partition(size_t x, size_t y) {
         size_t branches = mt.get_g_s_p(z - x, y - x).size();
         size_t add; 
         if (u) {
-            auto const& mt1 = _special_matrices[x][z-1];
+            auto const& mt1 = _special_matrices[x][z - 1];
             auto const& mt2 = _special_matrices[z][y - 1];
 
             size_t tr1 = mt1.get_c_tr_ctors_number(z - x);
@@ -246,13 +247,15 @@ void trellis_based_rml_decoder::build_special_matrix(size_t x, size_t y) {
 linalg::bit_vector trellis_based_rml_decoder::get_coset_vect(size_t x, size_t y, linalg::bit_vector const& vect) const {
     linalg::bit_matrix const& ctors = _special_matrices[x][y-1];
 
-    linalg::bit_vector cur = vect;
-    while (cur.size() < ctors[0].size()) {
-        cur.push_back(false);
-    }
+    linalg::bit_vector cur(ctors[0].size(), false);
+    cur += vect;
+   
+
+    linalg::bit_vector mask(cur.size(), false);
+    mask += linalg::bit_vector(y - x, true); 
 
     for (size_t i = 0; i < ctors.size(); ++i) {
-        if (cur[_leading_trailing_cache[x][y-1][i].first] && _leading_trailing_cache[x][y-1][i].second < (y - x)) {
+        if (cur[_leading_trailing_cache[x][y-1][i].first] && ctors[i].all(mask)) {
             cur += ctors[i];
         }
     }
@@ -405,17 +408,26 @@ size_t trellis_based_rml_decoder::get_nu(size_t x, size_t z, size_t y) {
 
     size_t c_tr_cnt = 0;
 
+    linalg::bit_vector mask1(_gen[0].size(), false);
+    mask1 += linalg::bit_vector(y, true);
+    if (x) mask1 += linalg::bit_vector(x - 1, true);
+
+    linalg::bit_vector mask2(_gen[0].size(), false);
+    mask2 += linalg::bit_vector(z, true);
+    if (x) mask2 += linalg::bit_vector(x - 1, true);
+
+    linalg::bit_vector mask3(_gen[0].size(), true);
+    mask3 += mask2;
+    mask3 += mask1;
 
     for (auto const& v :_gen) {
-        size_t tr = v.trailing();
-        size_t le = v.leading();
-        if (tr < y && le >= x) {
+        if (v.all(mask1)) {
             a.push_back(v.puncture(x, z));
         }
-        if (v.all_zeros(z, y)) {
+        if (v.all(mask3)) {
             b.push_back(v.puncture(x, z));
         }
-        if (tr < z && le >= x) {
+        if (v.all(mask2)) {
             ++c_tr_cnt;
         }
     }

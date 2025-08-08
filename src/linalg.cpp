@@ -139,7 +139,7 @@ bool bit_vector::all(bit_vector const& mask) const {
     return false;
 }
 
-size_t bit_vector::leading() const noexcept { // used in init, but can be optimized
+size_t bit_vector::leading() const noexcept {
     for (size_t i = 0; i < _sz; ++i) {
         if ((*this)[i]) {
             return i;
@@ -147,7 +147,7 @@ size_t bit_vector::leading() const noexcept { // used in init, but can be optimi
     }
     return _sz;
 }
-size_t bit_vector::trailing() const noexcept { // can be also optimized
+size_t bit_vector::trailing() const noexcept {
     for (size_t i = _sz - 1; i > 0; --i) {
         if ((*this)[i]) {
             return i;
@@ -156,18 +156,26 @@ size_t bit_vector::trailing() const noexcept { // can be also optimized
     return 0;
 }
 
-bool bit_vector::all_zeros(size_t from, size_t to) const { // can be also optimized
-    bool flag = false;
-    for (size_t i = from; i < to; ++i) {
-        flag |= (*this)[i]; 
-    }
-    return !flag;
+bool bit_vector::all_zeros(size_t from, size_t to) const {
+    bit_vector mask(size(), true);
+    mask += bit_vector(to, true);
+    if (from) mask += bit_vector(from - 1, true);
+    return all(mask);
 }
 
-bit_vector bit_vector::puncture(size_t from, size_t to) const { // can be also optimized
+bit_vector bit_vector::puncture(size_t from, size_t to) const {
     bit_vector res(to - from);
-    for (size_t i = from; i < to; ++i) {
-        res.set(i - from, (*this)[i]); 
+    uint64_t shift = from % UNDERLIING_TYPE_SIZE;
+    for (size_t i = 0; i < (to - from) / UNDERLIING_TYPE_SIZE; ++i) {
+        res._storage[i] = (_storage[i + from / UNDERLIING_TYPE_SIZE] >> shift) | (shift ? (_storage[i + from / UNDERLIING_TYPE_SIZE + 1] << (UNDERLIING_TYPE_SIZE - shift)) : 0);
+    }
+    if ((to - from) % UNDERLIING_TYPE_SIZE) {
+        if ((to - 1) % UNDERLIING_TYPE_SIZE < from % UNDERLIING_TYPE_SIZE) {
+            res._storage.back() = (_storage[to / UNDERLIING_TYPE_SIZE - 1] >> shift) & ((1ull << (UNDERLIING_TYPE_SIZE - from % UNDERLIING_TYPE_SIZE)) - 1) |
+                ((_storage[to / UNDERLIING_TYPE_SIZE] & (((1ull << (to % UNDERLIING_TYPE_SIZE)) - 1))) << (UNDERLIING_TYPE_SIZE - from % UNDERLIING_TYPE_SIZE));
+        } else {
+            res._storage.back() = (_storage[(to - 1) / UNDERLIING_TYPE_SIZE] >> shift) & ((1ull << (to - from) % UNDERLIING_TYPE_SIZE) - 1);
+        }
     }
     return res;
 }
@@ -210,10 +218,10 @@ bool bit_vector::operator!=(bit_vector const& o) const noexcept {
     return (_sz != o._sz) || (_storage != o._storage);
 }
 bool bit_vector::operator<(bit_vector const& o) const noexcept {
-    if (size() < o.size()) {
-        return true;
-    }
-    for (size_t i = 0; i < _storage.size(); ++i) {
+    // if (size() < o.size()) {
+    //     return true;
+    // }
+    for (ptrdiff_t i = _storage.size() - 1; i >= 0; --i) {
         if (_storage[i] < o._storage[i]) {
             return true;
         }
@@ -283,24 +291,40 @@ std::vector<size_t> bit_matrix::get_g_f_s(ptrdiff_t f, ptrdiff_t s) const {
     if (empty() || s <= f) {
         return {};
     }
-    auto indeces = get_g_f(f);
-    auto snd = retrieve(get_g_f(f)).get_g_s(s);
     std::vector<size_t> res;
-    for (size_t i = 0; i < snd.size(); ++i) {
-        res.push_back(indeces[snd[i]]);
+    bit_vector mask1(at(0).size(), false);
+    mask1 += bit_vector(s, true);
+    bit_vector mask2(at(0).size(), true);
+    mask2 += bit_vector(s, true);
+    bit_vector mask3(at(0).size(), true);
+    mask3 += bit_vector(f, true);
+
+    for (size_t i = 0; i < size(); ++i) {
+        bit_vector const & v = at(i);
+        if (v.any(mask2) && v.any(mask1) && v.all(mask3)) {
+            res.push_back(i);
+        }
     }
     return res;
 }
 
-std::vector<size_t> bit_matrix::get_g_s_p(ptrdiff_t f, ptrdiff_t s) const {
-    if (empty() || s <= f) {
+std::vector<size_t> bit_matrix::get_g_s_p(ptrdiff_t s, ptrdiff_t p) const {
+    if (empty() || p <= s) {
         return {};
     }
-    auto indeces = get_g_s(f);
-    auto snd = retrieve(get_g_s(f)).get_g_p(s);
     std::vector<size_t> res;
-    for (size_t i = 0; i < snd.size(); ++i) {
-        res.push_back(indeces[snd[i]]);
+    bit_vector mask1(at(0).size(), false);
+    mask1 += bit_vector(s, true);
+    bit_vector mask2(at(0).size(), true);
+    mask2 += bit_vector(s, true);
+    bit_vector mask3(at(0).size(), false);
+    mask3 += bit_vector(p, true);
+
+    for (size_t i = 0; i < size(); ++i) {
+        bit_vector const & v = at(i);
+        if (v.any(mask2) && v.any(mask1) && v.all(mask3)) {
+            res.push_back(i);
+        }
     }
     return res;
 }
@@ -313,13 +337,16 @@ bit_matrix bit_matrix::puncture(size_t x, size_t y) const {
     return res;
 }
 
+
+
 bit_matrix bit_matrix::resolve_basis_gaussian() {
     bit_matrix res;
     for (size_t i = 0; i < size(); ++i) {
-        if ((*this)[i].leading() != (*this)[i].size()) {
+        size_t l = (*this)[i].leading();
+        if (l != (*this)[i].size()) {
             res.push_back((*this)[i]);
             for (size_t j = i + 1; j < size(); ++j) {
-                if ((*this)[j][(*this)[i].leading()]) {
+                if ((*this)[j][l]) {
                     (*this)[j] += (*this)[i];
                 }
             }
