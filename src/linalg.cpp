@@ -1,10 +1,8 @@
 #include "linalg.h"
-#include <bitset>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <iostream>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -134,7 +132,6 @@ bool bit_vector::all(bit_vector const& mask) const {
         throw std::domain_error("uncompatible sizes");
     }
     for (size_t i = 0; i < mask._storage.size(); ++i) {
-        // std::cout << std::bitset<64>{_storage[i]} << " " << std::bitset<64>{~mask._storage[i]} << "\n";
         if ((_storage[i] & (~mask._storage[i])) == 0) {
             return true;
         }
@@ -241,7 +238,6 @@ std::vector<size_t> bit_matrix::get_g_s(ptrdiff_t h) const {
     bit_vector mask2(at(0).size(), true);
     mask2 += bit_vector(h, true);
 
-    // std::cout << "time: " << h << " printing masks: " << mask1.to_string() << " " << mask2.to_string() << "\n";
     for (size_t i = 0; i < size(); ++i) {
         bit_vector const & v = at(i);
         if (v.any(mask2) && v.any(mask1)) {
@@ -271,11 +267,9 @@ std::vector<size_t> bit_matrix::get_g_p(ptrdiff_t h) const {
     if (empty()) {
         return {};
     }
-    // std::cout << "gsp called: \n" << to_string() << "\n";
     std::vector<size_t> res;
     bit_vector mask1(at(0).size(), false);
     mask1 += bit_vector(h, true);
-    // std::cout << mask1.to_string() << "\n";
     for (size_t i = 0; i < size(); ++i) {
         bit_vector const & v = at(i);
         if (v.all(mask1)) {
