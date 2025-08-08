@@ -15,13 +15,13 @@ namespace linalg {
 #ifdef __GNUC__
 #define COUNT_LEADING(v) __builtin_ctzll(v);
 #else
-#define COUNT_LEADING(v) _tzcnt_64(v);
+#define COUNT_LEADING(v) _tzcnt_u64(v);
 #endif
 
 #ifdef __GNUC__
 #define COUNT_TRAILING(v) __builtin_clzll(v);
 #else
-#define COUNT_TRAILING(v) _lzcnt_64(v);
+#define COUNT_TRAILING(v) _lzcnt_u64(v);
 #endif
 
 bit_vector::bit_vector(size_t v, size_t sz) : _storage(1, v) , _sz(sz) {}
