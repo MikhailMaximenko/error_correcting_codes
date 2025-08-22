@@ -9,7 +9,7 @@ namespace encoding {
 
 bool trellis::check_vert_in_group(size_t comp, size_t sect, size_t vert) const noexcept {
     for (auto const& s : _groups[comp][sect]) {
-        if (s.find(vert) != s.end()) {
+        if (std::find(s.begin(), s.end(), vert) != s.end()) {
             return true;
         }
     }
@@ -18,7 +18,7 @@ bool trellis::check_vert_in_group(size_t comp, size_t sect, size_t vert) const n
 
 bool trellis::check_comp_in_group(size_t comp) const noexcept {
     for (auto const& s : _parallel_component_groups) {
-        if (s.find(comp) != s.end()) {
+        if (std::find(s.begin(), s.end(),comp) != s.end()) {
             return true;
         }
     }
@@ -80,23 +80,29 @@ void trellis::partition_group(size_t comp) {
             continue;
         } else {
             _groups[comp][0].emplace_back();
-            _groups[comp][0].back().insert(_parallel_components[comp][0][i]);
+            _groups[comp][0].back().push_back(_parallel_components[comp][0][i]);
         }
         for (size_t j = i + 1; j < _parallel_components[comp][0].size(); ++j) {
             if (compare_verteces(0, _parallel_components[comp][0][i], _parallel_components[comp][0][j])) {
-                _groups[comp][0].back().insert(_parallel_components[comp][0][j]);
+                _groups[comp][0].back().push_back(_parallel_components[comp][0][j]);
             }
         }
     }
 
-    for (auto const& br : _sections[0][*_groups[comp][0][0].begin()]._next) {
+    _positions_in_groups.resize(_sections[1].size());
+
+    for (size_t i = 0; i < _sections[0][*_groups[comp][0][0].begin()]._next.size(); ++i) {
+        auto const& br = _sections[0][*_groups[comp][0][0].begin()]._next[i];
         if (check_vert_in_group(comp, 1, br.second)) {
             continue;
         } else {
             _groups[comp][1].emplace_back();
         }
+        size_t ind = 0;
         for (size_t nd : _groups[comp][0][0]) {
-            _groups[comp][1].back().insert(_sections[0][nd]._next[br.first]);
+            _groups[comp][1].back().push_back(_sections[0][nd]._next[i].second);
+            _positions_in_groups[_sections[0][nd]._next[i].second] = ind;
+            ++ind;
         }
     }
 }
@@ -117,9 +123,9 @@ void trellis::init_branches_arrays() {
             _branches[i].emplace_back();
             for (size_t j = 0; j < _groups[comp][1].size(); ++j) {
                 _branches[i][k].emplace_back();
-                for (auto const& br : _sections[0][*_groups[comp][0][k].begin()]._next) {
-                    if (_groups[comp][1][j].find(br.second) != _groups[comp][1][j].end()) {
-                        _branches[i][k][j].push_back({std::numeric_limits<double>::infinity(), br.first});
+                for (size_t br = 0; br < _sections[0][*_groups[comp][0][k].begin()]._next.size(); ++br) {
+                    if (std::find(_groups[comp][1][j].begin(), _groups[comp][1][j].end(), _sections[0][*_groups[comp][0][k].begin()]._next[br].second) != _groups[comp][1][j].end()) {
+                        _branches[i][k][j].push_back({std::numeric_limits<double>::infinity(), {_sections[0][*_groups[comp][0][k].begin()]._next[br].first, br}});
                     }
                 }
             }
@@ -138,20 +144,22 @@ void trellis::init_branches_arrays() {
     }
 
     _group_cache.resize(_parallel_components.size());
+    _heap_storage.resize(_parallel_components.size());
     for (auto & comp_gr : _parallel_component_groups) {
         for (size_t comp : comp_gr) {
             _group_cache[comp].resize(_groups[comp][0].size());
-            for (auto & it : _group_cache[comp]) {
-                it.resize(_groups[comp][1].size());
-                for (size_t i = 0; i < _groups[comp][1].size(); ++i) {
-                    for (size_t vert : _groups[comp][1][i]) {
-                        it[i][_sections[1][vert]._incoming_coset] = {linalg::bit_vector(_sections[1][vert]._incoming_coset.size(), false), std::numeric_limits<double>::infinity()}; 
-                    }
+            _heap_storage[comp].resize(_groups[comp][0].size());
+            for (size_t i = 0; i < _group_cache[comp].size(); ++i) {
+                _group_cache[comp][i].resize(_groups[comp][1].size());
+                _heap_storage[comp][i].resize(_groups[comp][1].size());
+                for (size_t j = 0; j < _groups[comp][1].size(); ++j) {
+                    _group_cache[comp][i][j].resize(_groups[comp][1][0].size(), {linalg::bit_vector(), std::numeric_limits<double>::infinity()});
+                    _heap_storage[comp][i][j].resize(_groups[0][0][0].size());
                 }
             }
         }
     }
 
-    _heap_storage.reserve(_groups[0][0][0].size());
+    
 }
 }

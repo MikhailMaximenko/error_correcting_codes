@@ -1,5 +1,6 @@
 #pragma once
 
+#include "socow_vector.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -16,7 +17,7 @@ struct bit_matrix;
 
 struct bit_vector {
     static constexpr int UNDERLIING_TYPE_SIZE = 8 * sizeof(uint64_t);
-    std::vector<uint64_t> _storage;
+    socow_vector<uint64_t, 1> _storage;
     size_t _sz;
 
     bit_vector();
@@ -29,6 +30,9 @@ struct bit_vector {
     bool empty() const noexcept;
     bool operator[](size_t) const;
     void set(size_t, bool);
+
+    void cp(bit_vector const&);
+
 
     bit_vector& operator+=(bit_vector const&);
     bit_vector operator+(bit_vector const&) const;
@@ -53,6 +57,7 @@ struct bit_vector {
 
     bit_vector puncture(size_t, size_t) const;
     bit_vector concat(bit_vector const &) const;
+    bit_vector& concat(bit_vector const&);
 
     std::string to_string() const;
 

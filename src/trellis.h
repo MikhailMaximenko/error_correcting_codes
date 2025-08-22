@@ -9,9 +9,9 @@
 
 namespace encoding {
 struct trellis_node {
-    linalg::bit_vector _incoming_coset;
+    size_t _incoming_coset{-1ull};
 
-    std::map<linalg::bit_vector, size_t> _next;
+    std::vector<std::pair<size_t, size_t>> _next;
 
     trellis_node() : _next() {}
 };
@@ -22,15 +22,17 @@ struct trellis {
     // it consists of nodes separated by sections
 
     // additional info
-    std::vector<std::vector<std::vector<std::set<size_t>>>> _groups; // contains vectors of ids of nodes in the same group for each section for each parallel component
+    std::vector<std::vector<std::vector<std::vector<size_t>>>> _groups; // contains vectors of ids of nodes in the same group for each section for each parallel component
     std::vector<std::vector<std::vector<size_t>>> _parallel_components; // contains vectors of ids of nodes in the same parallel component for each section
     std::vector<std::set<size_t>> _parallel_component_groups; // contains vectors of ids of parallel components in the same groups
 
-    std::vector<std::vector<std::vector<std::vector<std::pair<double, linalg::bit_vector>>>>> _branches; // for each compgroup for each group pair store sorted ctors from z to y
+    std::vector<std::vector<std::vector<std::vector<std::pair<double, std::pair<size_t, size_t>>>>>> _branches; // for each compgroup for each group pair store sorted ctors from z to y
     std::vector<std::vector<std::vector<std::pair<double, size_t>>>> _inner_branches; // for each compgroup for each group store sorted ctors from x to z
-    std::vector<std::vector<std::vector<std::unordered_map<linalg::bit_vector, std::pair<linalg::bit_vector, double>>>>> _group_cache; // for each comp for each group pair store a map of results
+    std::vector<std::vector<std::vector<std::vector<std::pair<linalg::bit_vector, double>>>>> _group_cache; // for each comp for each group pair store a map of results
 
-    std::vector<std::pair<double, std::pair<size_t, size_t>>> _heap_storage;
+
+    std::vector<size_t> _positions_in_groups; // by right section get position in group cache
+    std::vector<std::vector<std::vector<std::vector<std::pair<double, std::pair<size_t, size_t>>>>>> _heap_storage;
     
     bool check_vert_in_group(size_t, size_t, size_t) const noexcept;
     bool check_comp_in_group(size_t) const noexcept;

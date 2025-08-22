@@ -55,12 +55,14 @@ struct trellis_based_rml_decoder {
 
     std::vector<std::vector<linalg::bit_vector>> _gray_codes; // contains all the gray codes of dims 0 to max(p_x_y(C)), where x, y are bounds of make_cbt procedure
 
-    std::vector<std::vector<std::vector<std::pair<std::pair<linalg::bit_vector, linalg::bit_vector>, std::pair<linalg::bit_vector, linalg::bit_vector>>>>> _ctors_for_make_cbt; // stores corresponding coset of vect and opposite coset and vect itself; if (g) then it stores ctors in gray order
+    std::vector<std::vector<std::vector<std::pair<std::pair<size_t, size_t>, std::pair<linalg::bit_vector, linalg::bit_vector>>>>> _ctors_for_make_cbt; // stores corresponding coset of vect and opposite coset and vect itself; if (g) then it stores ctors in gray order
 
     std::vector<std::vector<trellis>> _trellises;
     // we do not need to store shifts as we find basis vectors by gaussian method, however it might have some small speed up
     // we can also store all the trellises
-    std::vector<std::vector<std::unordered_map<linalg::bit_vector, std::pair<linalg::bit_vector, double>>>> _cbt;
+    std::vector<std::vector<std::unordered_map<linalg::bit_vector, size_t>>> _coset_translations;
+    std::vector<std::vector<std::vector<linalg::bit_vector>>> _back_coset_translations;
+    std::vector<std::vector<std::vector<std::pair<linalg::bit_vector, double>>>> _cbt;
 
     hamming_metric _metric;
     linalg::bit_vector _result;
@@ -72,6 +74,7 @@ struct trellis_based_rml_decoder {
     void count_partitions();
 
     void build_special_matrix(size_t x, size_t y);
+    void fill_coset_translations(size_t x, size_t y);
 
     void init(size_t, size_t);
 

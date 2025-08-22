@@ -35,7 +35,7 @@ void bit_vector::push_back(bool b) {
     }
     ++_sz;
 }
-bit_vector::bit_vector(size_t sz, bool v) : _storage(sz / UNDERLIING_TYPE_SIZE + (sz % UNDERLIING_TYPE_SIZE ? 1 : 0), v? -1 : 0) , _sz(sz) {
+bit_vector::bit_vector(size_t sz, bool v) : _storage(sz / UNDERLIING_TYPE_SIZE + (sz % UNDERLIING_TYPE_SIZE ? 1 : 0), v? -1ull : 0) , _sz(sz) {
     if (v && (sz % UNDERLIING_TYPE_SIZE != 0)) {
         _storage.back() &= ((1ull << (sz % UNDERLIING_TYPE_SIZE)) - 1);
     }
@@ -61,6 +61,16 @@ void bit_vector::set(size_t ind, bool v) {
     } else {
         _storage[ind / UNDERLIING_TYPE_SIZE] = _storage[ind / UNDERLIING_TYPE_SIZE] & ~(1ull << (ind % UNDERLIING_TYPE_SIZE));
     }
+}
+
+void bit_vector::cp(bit_vector const& o) {
+    if (o._storage.size() > _storage.size()) {
+        _storage.resize(o._storage.size());
+    }
+    for (size_t i = 0; i < o._storage.size(); ++i) {
+        _storage[i] = o._storage[i];
+    }
+    _sz = o._sz;
 }
 
 bit_vector& bit_vector::operator+=(bit_vector const& o) {
@@ -197,25 +207,36 @@ bit_vector bit_vector::puncture(size_t from, size_t to) const {
 
 bit_vector bit_vector::concat(bit_vector const & o) const { // need to be fast
     bit_vector res(*this);
-    res.resize(size() + o.size());
+    res.concat(o);
+    return res;
+}
+
+bit_vector& bit_vector::concat(bit_vector const& o) {
+    if ((_storage.size() > (_sz + o._sz - 1) / UNDERLIING_TYPE_SIZE) && _storage.size() == 1) {
+        _storage[0] |= o._storage[0] << _sz;
+        _sz += o._sz;
+        return *this;
+    }
+    size_t old_size = _storage.size();
+    size_t old_sz = _sz;
     uint64_t shift = size() % UNDERLIING_TYPE_SIZE;
+    resize(size() + o.size());
     if (shift == 0) {
-        for (size_t i = _storage.size(); i < res._storage.size(); ++i) {
-            res._storage[i] = o._storage[i - _storage.size()];
+        for (size_t i = old_size; i < _storage.size(); ++i) {
+            _storage[i] = o._storage[i - _storage.size()];
         }
     } else {
         uint64_t prev = _storage.back();
-        for (size_t i = _storage.size() - 1; i < res._storage.size(); ++i) {
-            res._storage[i] = prev;
-            if (i + 1 - _storage.size() < o._storage.size()) {
-                res._storage[i] |= (o._storage[i + 1 - _storage.size()] << shift);
-                prev = (o._storage[i + 1 - _storage.size()] >> (UNDERLIING_TYPE_SIZE - shift));
+        for (size_t i = old_size - 1; i < _storage.size(); ++i) {
+            _storage[i] = prev;
+            if (i + 1 - old_size < o._storage.size()) {
+                _storage[i] |= (o._storage[i + 1 - old_size] << shift);
+                prev = (o._storage[i + 1 - old_size] >> (UNDERLIING_TYPE_SIZE - shift));
             }
         }
     }
-    return res;
-    
-}   
+    return *this;   
+}
 
 std::string bit_vector::to_string() const {
     std::string res;
