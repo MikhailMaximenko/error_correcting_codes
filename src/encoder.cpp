@@ -430,8 +430,6 @@ size_t trellis_based_rml_decoder::get_nu(size_t x, size_t z, size_t y) {
     linalg::bit_matrix a;
     linalg::bit_matrix b;
     linalg::bit_matrix c;
-    linalg::bit_matrix c_tr;
-
     size_t c_tr_cnt = 0;
 
     linalg::bit_vector mask1(_gen[0].size(), false);
@@ -442,21 +440,27 @@ size_t trellis_based_rml_decoder::get_nu(size_t x, size_t z, size_t y) {
     mask2 += linalg::bit_vector(z, true);
     mask2 += linalg::bit_vector(x, true);
 
-    linalg::bit_vector mask3(_gen[0].size(), true);
-    mask3 += mask2;
-    mask3 += mask1;
+    linalg::bit_vector mask3(y - x, false);
+    mask3 += linalg::bit_vector(z - x + 1, true);
 
     for (auto const& v :_gen) {
+        size_t l = v.leading();
+        size_t t = v.trailing();
         if (v.all(mask1)) {
             a.push_back(v.puncture(x, z));
         }
-        if (v.all(mask3)) {
-            b.push_back(v.puncture(x, z));
-        }
-        if (v.all(mask2)) {
+        if (v.all(mask2)) {            
             ++c_tr_cnt;
         }
     }
+    auto b_prep = _gen.puncture(x, y).resolve_basis_gaussian();
+    b_prep.make_tof();
+    for (auto const& v :b_prep) {
+        if (v.all_zeros(z - x + 1, y - x)) {
+            b.push_back(v.puncture(0, z - x));
+        }
+    }
+
     a = a.resolve_basis_gaussian();
     b = b.resolve_basis_gaussian();
 

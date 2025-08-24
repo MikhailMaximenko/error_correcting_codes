@@ -184,13 +184,13 @@ public:
     _small = false;
   }
 
-  void resize(size_t new_size) {
+  void resize(size_t new_size, T const& v = T()) {
     if (_size >= new_size) {
         return;
     }
     reserve(new_size);
     for (size_t i = _size; i < new_size; ++i) {
-        (*this)[i] = T();
+        (*this)[i] = v;
     }
     _size = new_size;
 
