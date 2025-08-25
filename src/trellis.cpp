@@ -30,7 +30,7 @@ bool trellis::compare_verteces(size_t section, size_t fst, size_t snd) const noe
     }
     auto it1 = _sections[section][fst]._next.begin();
     auto it2 = _sections[section][snd]._next.begin();
-    while (it1 != _sections[0][fst]._next.end() && it2 != _sections[0][snd]._next.end()) {
+    while (it1 != _sections[section][fst]._next.end() && it2 != _sections[section][snd]._next.end()) {
         if (it1->first != it2->first) {
             return false;
         }
@@ -41,17 +41,15 @@ bool trellis::compare_verteces(size_t section, size_t fst, size_t snd) const noe
 }
 
 bool trellis::compare_parallel_components(size_t fst, size_t snd) const noexcept {
-    for (size_t i : _parallel_components[fst][0]) {
-        bool f = false;
-        for (size_t j : _parallel_components[snd][0]) {
-            if (compare_verteces(0, i, j)) {
-                f = true;
-                break;
-            }
-        }
-        if (!f) {
+    auto it1 = _parallel_components[fst][0].begin();
+    auto it2 = _parallel_components[snd][0].begin();
+    
+    while (it1 != _parallel_components[fst][0].end() && it2 != _parallel_components[snd][0].end()) {
+        if (!compare_verteces(0, *it1, *it2)) {
             return false;
         }
+        ++it1;
+        ++it2;
     }
     return true;
 }
@@ -123,9 +121,9 @@ void trellis::init_branches_arrays() {
             _branches[i].emplace_back();
             for (size_t j = 0; j < _groups[comp][1].size(); ++j) {
                 _branches[i][k].emplace_back();
-                for (size_t br = 0; br < _sections[0][*_groups[comp][0][k].begin()]._next.size(); ++br) {
-                    if (std::find(_groups[comp][1][j].begin(), _groups[comp][1][j].end(), _sections[0][*_groups[comp][0][k].begin()]._next[br].second) != _groups[comp][1][j].end()) {
-                        _branches[i][k][j].push_back({std::numeric_limits<double>::infinity(), {_sections[0][*_groups[comp][0][k].begin()]._next[br].first, br}});
+                for (size_t br = 0; br < _sections[0][_groups[comp][0][k][0]]._next.size(); ++br) {
+                    if (std::find(_groups[comp][1][j].begin(), _groups[comp][1][j].end(), _sections[0][_groups[comp][0][k][0]]._next[br].second) != _groups[comp][1][j].end()) {
+                        _branches[i][k][j].push_back({std::numeric_limits<double>::infinity(), {_sections[0][_groups[comp][0][k][0]]._next[br].first, br}});
                     }
                 }
             }
@@ -136,8 +134,8 @@ void trellis::init_branches_arrays() {
         _inner_branches.emplace_back();
         for (size_t j = 0; j < _groups[i][0].size(); ++j) {
             _inner_branches[i].emplace_back();
-
-            for (size_t vert : _groups[i][0][j]) {
+            
+            for (size_t vert : _groups[i][0][j]) { 
                 _inner_branches[i][j].push_back({std::numeric_limits<double>::infinity(), vert});
             }
         }

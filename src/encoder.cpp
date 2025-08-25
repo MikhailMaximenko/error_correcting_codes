@@ -303,13 +303,8 @@ void trellis_based_rml_decoder::build_special_trellis(size_t x, size_t z, size_t
         }
     }
 
-    for (size_t i = 0; i < (1 << z_dim); ++i) {
-        result._sections[0].emplace_back();    
-    }
-
-    for (size_t i = 0; i < (1 << y_dim); ++i) {
-        result._sections[1].emplace_back();
-    }
+    result._sections[0].resize(1 << z_dim);
+    result._sections[1].resize(1 << y_dim);
 
     auto g_s_ind = gen.get_g_s(z);
     auto g_s = gen.retrieve(g_s_ind);
@@ -639,6 +634,12 @@ void trellis_based_rml_decoder::comb_cbt_v(size_t x, size_t y) {
     }
 }
 
+// places where algo can break:
+// 1. all algos are broken, but is has more significant effects on this modification
+// 2. unifrm decomposition is bad
+// 3. init branches array is bad
+// 4. comb_cbt_u is bad
+
 void trellis_based_rml_decoder::comb_cbt_u(size_t x, size_t y)  {
     size_t z = _partiotions[x][y-1].first;
     if (z == x) {
@@ -717,17 +718,17 @@ void trellis_based_rml_decoder::comb_cbt_u(size_t x, size_t y)  {
                     size_t cnt = 0;
                     size_t elems = nu;
                     for (size_t b_z = 0; b_z < nu; ++b_z) {
-                        tr._heap_storage[comp_group][i][j][b_z] = {std::numeric_limits<double>::infinity(), {b_z, 0}};
+                        tr._heap_storage[component][i][j][b_z] = {std::numeric_limits<double>::infinity(), {b_z, 0}};
                         // pq.push({std::numeric_limits<double>::infinity(), {b_z, 0}});
                     }
-                    std::make_heap(tr._heap_storage[comp_group][i][j].begin(), tr._heap_storage[comp_group][i][j].end(), cmp);
+                    std::make_heap(tr._heap_storage[component][i][j].begin(), tr._heap_storage[component][i][j].end(), cmp);
 
 
                     while (cnt < nu) { // f3
                         // auto const& cur = pq.top();
-                        std::pop_heap(tr._heap_storage[comp_group][i][j].begin(), tr._heap_storage[comp_group][i][j].begin() + elems, cmp);
+                        std::pop_heap(tr._heap_storage[component][i][j].begin(), tr._heap_storage[component][i][j].begin() + elems, cmp);
                         --elems;
-                        auto const& cur = tr._heap_storage[comp_group][i][j][elems];
+                        auto const& cur = tr._heap_storage[component][i][j][elems];
                         double metric = cur.first;
                         size_t b_z = cur.second.first;
                         size_t b_y = cur.second.second;
@@ -744,10 +745,8 @@ void trellis_based_rml_decoder::comb_cbt_u(size_t x, size_t y)  {
                             r.first.cp(fst);
                             r.first.concat(snd);
                             r.second = metric;
-                            // r = {fst.concat(snd), metric};
                             ++cnt;
                         }
-                        // pq.pop();
                         size_t trans;
                         size_t cst;
                         do { // skip b_ys if the best metric was already found
@@ -757,10 +756,9 @@ void trellis_based_rml_decoder::comb_cbt_u(size_t x, size_t y)  {
                             }
                         } while(b_y < nu && !(std::isinf(tr._group_cache[component][i][j][tr._positions_in_groups[tr._sections[0][left_node]._next[trans].second]].second)));
                         if (b_y < nu) {
-                            tr._heap_storage[comp_group][i][j][elems] = {std::numeric_limits<double>::infinity(), {b_z, b_y}};
+                            tr._heap_storage[component][i][j][elems] = {std::numeric_limits<double>::infinity(), {b_z, b_y}};
                             ++elems;
-                            std::push_heap(tr._heap_storage[comp_group][i][j].begin(), tr._heap_storage[comp_group][i][j].begin() + elems, cmp);
-                            // pq.push({std::numeric_limits<double>::infinity(), {b_z, b_y}});  
+                            std::push_heap(tr._heap_storage[component][i][j].begin(), tr._heap_storage[component][i][j].begin() + elems, cmp);
                         }
                     }
                     for (size_t k : tr._groups[component][1][j]) { // f4

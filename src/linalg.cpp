@@ -165,7 +165,11 @@ bool bit_vector::all(bit_vector const& mask) const {
 size_t bit_vector::leading() const noexcept {
     size_t res = 0;
     for (size_t i = 0; i < _storage.size(); ++i) {
-        res += COUNT_LEADING(_storage[i]);
+        if (_storage[i] == 0) {
+            res += 64;
+        } else {
+            res += COUNT_LEADING(_storage[i]);
+        }
         if (res != UNDERLIING_TYPE_SIZE) {
             return std::min(res, _sz);
         }
