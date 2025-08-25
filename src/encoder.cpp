@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
-#include <iostream>
 #include <limits>
 #include <stdexcept>
 #include <unordered_map>
@@ -117,11 +116,6 @@ void trellis_based_rml_decoder::init(size_t x, size_t y) {
         build_special_trellis(x, z - x, y - x);
         if (u) {
             make_uniform_decomposition(x, z, y);
-            size_t nu = get_nu(x, z, y);
-            if (_trellises[x][y-1]._groups[0][0][0].size() != (1 << nu)) {
-                std::cout << x << " " << z << " " << y << " " << (1 << nu) << " " << _trellises[x][y-1]._groups[0][0][0].size() << "\n";
-                throw std::runtime_error("nu not real");
-            }
         } 
     } else {
         if (g) {
@@ -435,9 +429,6 @@ size_t trellis_based_rml_decoder::get_nu(size_t x, size_t z, size_t y) {
     mask2 += linalg::bit_vector(z, true);
     mask2 += linalg::bit_vector(x, true);
 
-    linalg::bit_vector mask3(y - x, false);
-    mask3 += linalg::bit_vector(z - x + 1, true);
-
     for (auto const& v :_gen) {
         size_t l = v.leading();
         size_t t = v.trailing();
@@ -628,17 +619,10 @@ void trellis_based_rml_decoder::comb_cbt_v(size_t x, size_t y) {
                 _cbt[x][y-1][coset].first.cp(fst);
                 _cbt[x][y-1][coset].first.concat(snd);
                 _cbt[x][y-1][coset].second = metric;
-                // _cbt[x][y-1][coset] = {std::move(fst.concat(snd)), metric};
             }
         }
     }
 }
-
-// places where algo can break:
-// 1. all algos are broken, but is has more significant effects on this modification
-// 2. unifrm decomposition is bad
-// 3. init branches array is bad
-// 4. comb_cbt_u is bad
 
 void trellis_based_rml_decoder::comb_cbt_u(size_t x, size_t y)  {
     size_t z = _partiotions[x][y-1].first;
@@ -712,20 +696,15 @@ void trellis_based_rml_decoder::comb_cbt_u(size_t x, size_t y)  {
                         return a.first > b.first;
                     };
 
-                    // use touples instead of pairs
-                    // std::priority_queue<std::pair<double, std::pair<size_t, size_t>>, std::vector<std::pair<double, std::pair<size_t, size_t>>>, decltype(cmp)> pq (tr._heap_storage.begin(), tr._heap_storage.end(), cmp);
-
                     size_t cnt = 0;
                     size_t elems = nu;
                     for (size_t b_z = 0; b_z < nu; ++b_z) {
                         tr._heap_storage[component][i][j][b_z] = {std::numeric_limits<double>::infinity(), {b_z, 0}};
-                        // pq.push({std::numeric_limits<double>::infinity(), {b_z, 0}});
                     }
                     std::make_heap(tr._heap_storage[component][i][j].begin(), tr._heap_storage[component][i][j].end(), cmp);
 
 
                     while (cnt < nu) { // f3
-                        // auto const& cur = pq.top();
                         std::pop_heap(tr._heap_storage[component][i][j].begin(), tr._heap_storage[component][i][j].begin() + elems, cmp);
                         --elems;
                         auto const& cur = tr._heap_storage[component][i][j][elems];
